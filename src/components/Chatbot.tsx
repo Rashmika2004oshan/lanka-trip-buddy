@@ -41,13 +41,13 @@ const Chatbot = () => {
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": "Bearer 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",
+          "Authorization": "Bearer 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",
           "Content-Type": "application/json",
           "HTTP-Referer": window.location.href,
           "X-Title": "Sri Lanka Tourism AI Guide",
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-chat-v3-0324:free",
+          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
           messages: [
             {
               role: "system",
