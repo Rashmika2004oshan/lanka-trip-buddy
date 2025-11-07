@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { Train } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Train, ExternalLink } from "lucide-react";
 
 const TrainScheduleSection = () => {
   return (
@@ -17,26 +17,23 @@ const TrainScheduleSection = () => {
           </p>
         </div>
 
-        <Card className="overflow-hidden border-border/50 shadow-elegant">
-          <iframe
-            src="https://trainschedule.lk/"
-            className="w-full h-[800px] border-0"
-            title="Sri Lanka Train Schedule"
-            loading="lazy"
-          />
-        </Card>
-
-        <div className="mt-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            Powered by{" "}
+        <div className="text-center">
+          <Button
+            size="lg"
+            className="bg-gradient-tropical hover:opacity-90 text-white font-semibold gap-2"
+            asChild
+          >
             <a
               href="https://trainschedule.lk/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
             >
-              TrainSchedule.lk
+              View Train Schedules
+              <ExternalLink className="h-5 w-5" />
             </a>
+          </Button>
+          <p className="text-sm text-muted-foreground mt-4">
+            Opens TrainSchedule.lk in a new tab
           </p>
         </div>
       </div>
