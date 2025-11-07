@@ -3,6 +3,7 @@ import AboutSection from "@/components/AboutSection";
 import PlacesSection from "@/components/PlacesSection";
 import MapSection from "@/components/MapSection";
 import ItineraryPlanner from "@/components/ItineraryPlanner";
+import TrainScheduleSection from "@/components/TrainScheduleSection";
 import Chatbot from "@/components/Chatbot";
 
 const Index = () => {
@@ -13,6 +14,7 @@ const Index = () => {
       <PlacesSection />
       <MapSection />
       <ItineraryPlanner />
+      <TrainScheduleSection />
       <Chatbot />
       
       <footer className="bg-foreground text-background py-8 px-4 text-center">
