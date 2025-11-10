@@ -4,11 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Sparkles } from "lucide-react";
+import { Calendar, Sparkles, Save, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 const ItineraryPlanner = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [days, setDays] = useState("");
+  const [itineraryTitle, setItineraryTitle] = useState("");
   const [interests, setInterests] = useState({
     culture: false,
     beaches: false,
@@ -17,6 +23,7 @@ const ItineraryPlanner = () => {
     adventure: false,
   });
   const [itinerary, setItinerary] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const generateItinerary = () => {
     const numDays = parseInt(days);
@@ -92,6 +99,38 @@ const ItineraryPlanner = () => {
     toast.success("Itinerary generated successfully!");
   };
 
+  const saveItinerary = async () => {
+    if (!user) {
+      toast.error("Please sign in to save itineraries");
+      navigate("/auth");
+      return;
+    }
+
+    if (!itineraryTitle.trim()) {
+      toast.error("Please enter a title for your itinerary");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("saved_itineraries").insert({
+        user_id: user.id,
+        title: itineraryTitle,
+        days: parseInt(days),
+        interests,
+        itinerary_data: itinerary,
+      });
+
+      if (error) throw error;
+      toast.success("Itinerary saved successfully!");
+      setItineraryTitle("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save itinerary");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section id="itinerary" className="py-20 px-4 bg-muted/30">
       <div className="container mx-auto max-w-4xl">
@@ -162,16 +201,47 @@ const ItineraryPlanner = () => {
             </Button>
 
             {itinerary.length > 0 && (
-              <div className="mt-8 space-y-3 p-6 bg-gradient-hero rounded-xl border border-border/30">
-                <h3 className="text-xl font-semibold text-foreground mb-4">Your Personalized Itinerary</h3>
-                {itinerary.map((day, index) => (
-                  <div key={index} className="flex gap-3 items-start">
-                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 font-semibold text-sm">
-                      {index + 1}
-                    </div>
-                    <p className="text-foreground pt-1">{day}</p>
+              <div className="mt-8 space-y-4">
+                <div className="p-6 bg-gradient-hero rounded-xl border border-border/30">
+                  <h3 className="text-xl font-semibold text-foreground mb-4">Your Personalized Itinerary</h3>
+                  <div className="space-y-3">
+                    {itinerary.map((day, index) => (
+                      <div key={index} className="flex gap-3 items-start">
+                        <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 font-semibold text-sm">
+                          {index + 1}
+                        </div>
+                        <p className="text-foreground pt-1">{day}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {user ? (
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="Give your itinerary a title..."
+                      value={itineraryTitle}
+                      onChange={(e) => setItineraryTitle(e.target.value)}
+                    />
+                    <Button
+                      onClick={saveItinerary}
+                      disabled={saving}
+                      className="w-full bg-gradient-tropical text-white"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      {saving ? "Saving..." : "Save Itinerary"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => navigate("/auth")}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign in to save your itinerary
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
