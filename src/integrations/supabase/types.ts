@@ -14,7 +14,123 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      favorite_places: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          place_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          place_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          place_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          country: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          country?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          country?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      saved_itineraries: {
+        Row: {
+          created_at: string
+          days: number
+          id: string
+          interests: Json
+          itinerary_data: Json
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days: number
+          id?: string
+          interests: Json
+          itinerary_data: Json
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days?: number
+          id?: string
+          interests?: Json
+          itinerary_data?: Json
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      travel_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          place_name: string
+          rating: number
+          review_text: string | null
+          updated_at: string
+          user_id: string
+          visit_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          place_name: string
+          rating: number
+          review_text?: string | null
+          updated_at?: string
+          user_id: string
+          visit_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          place_name?: string
+          rating?: number
+          review_text?: string | null
+          updated_at?: string
+          user_id?: string
+          visit_date?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
