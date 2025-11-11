@@ -38,6 +38,45 @@ export type Database = {
         }
         Relationships: []
       }
+      hotels: {
+        Row: {
+          category: string
+          city: string
+          created_at: string
+          hotel_name: string
+          id: string
+          image_url: string | null
+          per_night_charge: number
+          stars: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          city: string
+          created_at?: string
+          hotel_name: string
+          id?: string
+          image_url?: string | null
+          per_night_charge: number
+          stars: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          city?: string
+          created_at?: string
+          hotel_name?: string
+          id?: string
+          image_url?: string | null
+          per_night_charge?: number
+          stars?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -128,6 +167,42 @@ export type Database = {
           updated_at?: string
           user_id?: string
           visit_date?: string | null
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          model: string
+          per_km_charge: number
+          updated_at: string
+          user_id: string
+          vehicle_number: string
+          vehicle_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          model: string
+          per_km_charge: number
+          updated_at?: string
+          user_id: string
+          vehicle_number: string
+          vehicle_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          model?: string
+          per_km_charge?: number
+          updated_at?: string
+          user_id?: string
+          vehicle_number?: string
+          vehicle_type?: string
         }
         Relationships: []
       }

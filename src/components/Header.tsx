@@ -26,20 +26,23 @@ const Header = () => {
               Sri Lanka Travel
             </h1>
             <div className="hidden md:flex gap-6">
-              <a href="#hero" className="text-foreground/80 hover:text-foreground transition-colors">
+              <a href="/" className="text-foreground/80 hover:text-foreground transition-colors">
                 Home
               </a>
-              <a href="#about" className="text-foreground/80 hover:text-foreground transition-colors">
-                About
+              <a href="/vehicle-rental" className="text-foreground/80 hover:text-foreground transition-colors">
+                Vehicles
               </a>
-              <a href="#places" className="text-foreground/80 hover:text-foreground transition-colors">
-                Places
+              <a href="/accommodation" className="text-foreground/80 hover:text-foreground transition-colors">
+                Hotels
               </a>
-              <a href="#map" className="text-foreground/80 hover:text-foreground transition-colors">
-                Map
+              <a href="/weather" className="text-foreground/80 hover:text-foreground transition-colors">
+                Weather
               </a>
-              <a href="#itinerary" className="text-foreground/80 hover:text-foreground transition-colors">
-                Itinerary
+              <a href="/driver-survey" className="text-foreground/80 hover:text-foreground transition-colors">
+                List Vehicle
+              </a>
+              <a href="/hotel-survey" className="text-foreground/80 hover:text-foreground transition-colors">
+                List Hotel
               </a>
             </div>
           </div>
