@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
+import BookingDialog from "@/components/BookingDialog";
 import { Hotel, Star } from "lucide-react";
 
 interface HotelData {
@@ -19,6 +20,8 @@ interface HotelData {
 const Accommodation = () => {
   const [hotels, setHotels] = useState<HotelData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [selectedHotel, setSelectedHotel] = useState<HotelData | null>(null);
 
   useEffect(() => {
     fetchHotels();
@@ -110,9 +113,16 @@ const Accommodation = () => {
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-primary">
-                        ${hotel.per_night_charge}/night
+                        LKR {hotel.per_night_charge}/night
                       </span>
-                      <Button>Book Now</Button>
+                      <Button 
+                        onClick={() => {
+                          setSelectedHotel(hotel);
+                          setBookingDialogOpen(true);
+                        }}
+                      >
+                        Book Now
+                      </Button>
                     </div>
                   </div>
                 </Card>
@@ -121,6 +131,15 @@ const Accommodation = () => {
           )}
         </div>
       </main>
+
+      {selectedHotel && (
+        <BookingDialog
+          open={bookingDialogOpen}
+          onOpenChange={setBookingDialogOpen}
+          bookingType="accommodation"
+          itemData={selectedHotel}
+        />
+      )}
     </div>
   );
 };

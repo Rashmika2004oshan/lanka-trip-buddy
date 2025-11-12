@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
+import BookingDialog from "@/components/BookingDialog";
 import { Car } from "lucide-react";
 
 interface Vehicle {
@@ -17,6 +18,8 @@ interface Vehicle {
 const VehicleRental = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     fetchVehicles();
@@ -84,9 +87,16 @@ const VehicleRental = () => {
                     <p className="text-muted-foreground mb-4">Number: {vehicle.vehicle_number}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-primary">
-                        ${vehicle.per_km_charge}/km
+                        LKR {vehicle.per_km_charge}/km
                       </span>
-                      <Button>Book Now</Button>
+                      <Button 
+                        onClick={() => {
+                          setSelectedVehicle(vehicle);
+                          setBookingDialogOpen(true);
+                        }}
+                      >
+                        Book Now
+                      </Button>
                     </div>
                   </div>
                 </Card>
@@ -95,6 +105,15 @@ const VehicleRental = () => {
           )}
         </div>
       </main>
+
+      {selectedVehicle && (
+        <BookingDialog
+          open={bookingDialogOpen}
+          onOpenChange={setBookingDialogOpen}
+          bookingType="vehicle"
+          itemData={selectedVehicle}
+        />
+      )}
     </div>
   );
 };

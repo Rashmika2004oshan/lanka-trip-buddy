@@ -5,11 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Sparkles, Save, LogIn, DollarSign } from "lucide-react";
+import { Calendar, Sparkles, Save, LogIn, DollarSign, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Hotel {
   id: string;
@@ -45,6 +53,7 @@ const ItineraryPlanner = () => {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [totalCost, setTotalCost] = useState(0);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchHotelsAndVehicles();
@@ -359,21 +368,13 @@ const ItineraryPlanner = () => {
                 </div>
 
                 {user ? (
-                  <div className="space-y-3">
-                    <Input
-                      placeholder="Give your itinerary a title..."
-                      value={itineraryTitle}
-                      onChange={(e) => setItineraryTitle(e.target.value)}
-                    />
-                    <Button
-                      onClick={saveItinerary}
-                      disabled={saving}
-                      className="w-full bg-gradient-tropical text-white"
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      {saving ? "Saving..." : "Save Itinerary"}
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={() => setSaveDialogOpen(true)}
+                    className="w-full bg-gradient-tropical text-white"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Itinerary
+                  </Button>
                 ) : (
                   <Button
                     onClick={() => navigate("/auth")}
@@ -388,6 +389,37 @@ const ItineraryPlanner = () => {
             )}
           </CardContent>
         </Card>
+
+        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Save Your Itinerary</DialogTitle>
+              <DialogDescription>
+                Give your itinerary a memorable name to find it easily later
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Itinerary Title</Label>
+                <Input
+                  id="title"
+                  placeholder="e.g., Amazing Sri Lanka Adventure"
+                  value={itineraryTitle}
+                  onChange={(e) => setItineraryTitle(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSaveDialogOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button onClick={saveItinerary} disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   );

@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          booking_status: string
+          booking_type: string
+          card_last_four: string | null
+          check_in_date: string | null
+          check_out_date: string | null
+          created_at: string
+          estimated_km: number | null
+          hotel_id: string | null
+          id: string
+          number_of_nights: number | null
+          number_of_persons: number | null
+          payment_method: string
+          rental_end_date: string | null
+          rental_start_date: string | null
+          room_type: string | null
+          service_charge: number
+          subtotal: number
+          total_amount: number
+          updated_at: string
+          user_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          booking_status?: string
+          booking_type: string
+          card_last_four?: string | null
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string
+          estimated_km?: number | null
+          hotel_id?: string | null
+          id?: string
+          number_of_nights?: number | null
+          number_of_persons?: number | null
+          payment_method?: string
+          rental_end_date?: string | null
+          rental_start_date?: string | null
+          room_type?: string | null
+          service_charge: number
+          subtotal: number
+          total_amount: number
+          updated_at?: string
+          user_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          booking_status?: string
+          booking_type?: string
+          card_last_four?: string | null
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string
+          estimated_km?: number | null
+          hotel_id?: string | null
+          id?: string
+          number_of_nights?: number | null
+          number_of_persons?: number | null
+          payment_method?: string
+          rental_end_date?: string | null
+          rental_start_date?: string | null
+          room_type?: string | null
+          service_charge?: number
+          subtotal?: number
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorite_places: {
         Row: {
           created_at: string

@@ -44,6 +44,16 @@ const Header = () => {
               <a href="/hotel-survey" className="text-foreground/80 hover:text-foreground transition-colors">
                 List Hotel
               </a>
+              {user && (
+                <>
+                  <a href="/my-bookings" className="text-foreground/80 hover:text-foreground transition-colors">
+                    My Bookings
+                  </a>
+                  <a href="/saved-itineraries" className="text-foreground/80 hover:text-foreground transition-colors">
+                    My Itineraries
+                  </a>
+                </>
+              )}
             </div>
           </div>
           
