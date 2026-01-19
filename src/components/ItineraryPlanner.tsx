@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Sparkles, Save, LogIn, DollarSign, Loader2 } from "lucide-react";
+import { Calendar, Sparkles, Save, LogIn, DollarSign, Loader2, Download, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import jsPDF from "jspdf";
 import {
   Dialog,
   DialogContent,
@@ -33,12 +34,14 @@ interface Vehicle {
   vehicle_type: string;
   model: string;
   per_km_charge: number;
+  vehicle_category: string | null;
 }
 
 const ItineraryPlanner = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [days, setDays] = useState("");
+  const [guests, setGuests] = useState("1");
   const [itineraryTitle, setItineraryTitle] = useState("");
   const [budget, setBudget] = useState("");
   const [interests, setInterests] = useState({
@@ -46,14 +49,18 @@ const ItineraryPlanner = () => {
     beaches: false,
     nature: false,
     wildlife: false,
-    adventure: false,
   });
+  const [hotelCategory, setHotelCategory] = useState<string>("");
+  const [vehicleType, setVehicleType] = useState<string>("");
+  const [vehicleCategory, setVehicleCategory] = useState<string>("");
   const [itinerary, setItinerary] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [totalCost, setTotalCost] = useState(0);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     fetchHotelsAndVehicles();
@@ -73,12 +80,54 @@ const ItineraryPlanner = () => {
     }
   };
 
+  // Get available vehicle types based on guest count
+  const getAvailableVehicleTypes = () => {
+    const guestCount = parseInt(guests) || 1;
+    
+    if (guestCount > 7) {
+      return [{ value: "Bus", label: "Bus (8+ passengers)" }];
+    } else if (guestCount > 4) {
+      return [
+        { value: "Van", label: "Van (5-7 passengers)" },
+        { value: "Bus", label: "Bus (8+ passengers)" },
+      ];
+    } else {
+      return [
+        { value: "Car", label: "Car (1-4 passengers)" },
+        { value: "Van", label: "Van (5-7 passengers)" },
+        { value: "Bus", label: "Bus (8+ passengers)" },
+      ];
+    }
+  };
+
+  // Get filtered hotels based on category
+  const getFilteredHotels = () => {
+    if (!hotelCategory) return [];
+    return hotels.filter(h => h.category === hotelCategory);
+  };
+
+  // Get filtered vehicles based on type and category
+  const getFilteredVehicles = () => {
+    if (!vehicleType) return [];
+    return vehicles.filter(v => {
+      const typeMatch = v.vehicle_type.toLowerCase().includes(vehicleType.toLowerCase());
+      const categoryMatch = !vehicleCategory || v.vehicle_category === vehicleCategory;
+      return typeMatch && categoryMatch;
+    });
+  };
+
   const generateItinerary = () => {
     const numDays = parseInt(days);
+    const numGuests = parseInt(guests) || 1;
     const budgetAmount = parseFloat(budget);
     
     if (!numDays || numDays < 1 || numDays > 30) {
       toast.error("Please enter a valid number of days (1-30)");
+      return;
+    }
+
+    if (!numGuests || numGuests < 1) {
+      toast.error("Please enter a valid number of guests");
       return;
     }
 
@@ -96,13 +145,22 @@ const ItineraryPlanner = () => {
       return;
     }
 
+    if (!hotelCategory) {
+      toast.error("Please select a hotel category");
+      return;
+    }
+
+    if (!vehicleType) {
+      toast.error("Please select a vehicle type");
+      return;
+    }
+
     // City mapping based on interests
     const cityMapping: Record<string, string[]> = {
       culture: ["Kandy", "Sigiriya", "Colombo"],
       beaches: ["Mirissa", "Galle", "Colombo"],
       nature: ["Kandy", "Sigiriya"],
       wildlife: ["Sigiriya"],
-      adventure: ["Kandy", "Galle"],
     };
 
     // Get relevant cities
@@ -110,28 +168,32 @@ const ItineraryPlanner = () => {
       selectedInterests.flatMap(interest => cityMapping[interest] || [])
     )];
 
-    // Filter hotels by budget and cities
-    const affordableHotels = hotels.filter(h => 
-      h.per_night_charge <= (budgetAmount / numDays) * 0.7 &&
-      relevantCities.includes(h.city)
+    // Filter hotels by category and cities
+    const categoryHotels = hotels.filter(h => 
+      h.category === hotelCategory &&
+      (relevantCities.length === 0 || relevantCities.includes(h.city))
     ).sort((a, b) => b.stars - a.stars);
 
-    // Select best vehicle within budget
-    const dailyBudgetForTransport = (budgetAmount / numDays) * 0.3;
-    const avgKmPerDay = 100; // Average travel distance
-    const affordableVehicles = vehicles.filter(v => 
-      v.per_km_charge * avgKmPerDay <= dailyBudgetForTransport
+    // Filter vehicles by type
+    const typeVehicles = vehicles.filter(v => 
+      v.vehicle_type.toLowerCase().includes(vehicleType.toLowerCase()) &&
+      (!vehicleCategory || v.vehicle_category === vehicleCategory)
     ).sort((a, b) => a.per_km_charge - b.per_km_charge);
 
-    if (affordableHotels.length === 0) {
-      toast.error("No hotels found within your budget. Try increasing your budget.");
+    if (categoryHotels.length === 0) {
+      toast.error(`No ${hotelCategory} hotels found. Try a different category.`);
       return;
     }
 
-    if (affordableVehicles.length === 0) {
-      toast.error("No vehicles found within your budget. Try increasing your budget.");
+    if (typeVehicles.length === 0) {
+      toast.error(`No ${vehicleType} vehicles found. Try a different type.`);
       return;
     }
+
+    const chosenHotel = categoryHotels[0];
+    const chosenVehicle = typeVehicles[0];
+    setSelectedHotel(chosenHotel);
+    setSelectedVehicle(chosenVehicle);
 
     // Activity suggestions
     const suggestions: Record<string, string[]> = {
@@ -163,45 +225,125 @@ const ItineraryPlanner = () => {
         "Bird watching in Bundala National Park",
         "Whale watching in Mirissa",
       ],
-      adventure: [
-        "White water rafting in Kitulgala",
-        "Rock climbing in Ella",
-        "Zip-lining through tea estates",
-        "Paragliding in Diyatalawa",
-        "Scuba diving in Hikkaduwa",
-      ],
     };
 
     const plan: any[] = [];
+    const avgKmPerDay = 100;
     let total = 0;
-    const selectedVehicle = affordableVehicles[0];
 
     for (let i = 0; i < numDays; i++) {
       const interest = selectedInterests[i % selectedInterests.length];
       const activities = suggestions[interest];
       const activity = activities[i % activities.length];
       
-      // Select hotel for this day
-      const hotel = affordableHotels[i % affordableHotels.length];
-      const dailyTransportCost = selectedVehicle.per_km_charge * avgKmPerDay;
+      const dailyTransportCost = chosenVehicle.per_km_charge * avgKmPerDay;
       
       plan.push({
         day: i + 1,
         activity,
-        hotel: hotel.hotel_name,
-        hotelCity: hotel.city,
-        hotelCost: hotel.per_night_charge,
-        transport: selectedVehicle.model,
+        hotel: chosenHotel.hotel_name,
+        hotelCity: chosenHotel.city,
+        hotelCost: chosenHotel.per_night_charge,
+        hotelCategory: chosenHotel.category,
+        transport: chosenVehicle.model,
+        transportType: chosenVehicle.vehicle_type,
         transportCost: dailyTransportCost,
-        dailyTotal: hotel.per_night_charge + dailyTransportCost
+        dailyTotal: chosenHotel.per_night_charge + dailyTransportCost
       });
       
-      total += hotel.per_night_charge + dailyTransportCost;
+      total += chosenHotel.per_night_charge + dailyTransportCost;
     }
 
     setItinerary(plan);
     setTotalCost(total);
     toast.success("Itinerary generated successfully!");
+  };
+
+  const downloadPDF = () => {
+    if (itinerary.length === 0) {
+      toast.error("Generate an itinerary first");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Title
+    doc.setFontSize(24);
+    doc.setTextColor(33, 37, 41);
+    doc.text("Sri Lanka Travel Itinerary", pageWidth / 2, 25, { align: "center" });
+    
+    // Subtitle
+    doc.setFontSize(12);
+    doc.setTextColor(108, 117, 125);
+    doc.text(`${days} Days | ${guests} Guest(s) | Budget: $${budget}`, pageWidth / 2, 35, { align: "center" });
+    
+    // Selected interests
+    const selectedInterests = Object.entries(interests)
+      .filter(([_, selected]) => selected)
+      .map(([interest]) => interest.charAt(0).toUpperCase() + interest.slice(1))
+      .join(", ");
+    doc.text(`Interests: ${selectedInterests}`, pageWidth / 2, 42, { align: "center" });
+    
+    // Accommodation & Transport info
+    doc.setFontSize(11);
+    doc.setTextColor(33, 37, 41);
+    doc.text(`Accommodation: ${selectedHotel?.hotel_name || 'N/A'} (${hotelCategory})`, 15, 55);
+    doc.text(`Transport: ${selectedVehicle?.model || 'N/A'} (${vehicleType})`, 15, 62);
+    
+    // Divider line
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, 68, pageWidth - 15, 68);
+    
+    let yPos = 78;
+    
+    itinerary.forEach((dayPlan, index) => {
+      // Check if we need a new page
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 25;
+      }
+      
+      // Day header
+      doc.setFontSize(14);
+      doc.setTextColor(25, 135, 84);
+      doc.text(`Day ${dayPlan.day}`, 15, yPos);
+      
+      // Activity
+      doc.setFontSize(11);
+      doc.setTextColor(33, 37, 41);
+      doc.text(dayPlan.activity, 15, yPos + 8);
+      
+      // Details
+      doc.setFontSize(10);
+      doc.setTextColor(108, 117, 125);
+      doc.text(`Hotel: ${dayPlan.hotel} (${dayPlan.hotelCity}) - $${dayPlan.hotelCost.toFixed(2)}`, 15, yPos + 16);
+      doc.text(`Transport: ${dayPlan.transport} - $${dayPlan.transportCost.toFixed(2)}`, 15, yPos + 23);
+      doc.text(`Day Total: $${dayPlan.dailyTotal.toFixed(2)}`, 15, yPos + 30);
+      
+      yPos += 42;
+    });
+    
+    // Total cost
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 25;
+    }
+    
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, yPos, pageWidth - 15, yPos);
+    
+    doc.setFontSize(16);
+    doc.setTextColor(25, 135, 84);
+    doc.text(`Total Estimated Cost: $${totalCost.toFixed(2)}`, pageWidth / 2, yPos + 12, { align: "center" });
+    
+    // Footer
+    doc.setFontSize(9);
+    doc.setTextColor(108, 117, 125);
+    doc.text("Generated by Sri Lanka Travel Planner", pageWidth / 2, 285, { align: "center" });
+    
+    doc.save(`sri-lanka-itinerary-${days}days.pdf`);
+    toast.success("PDF downloaded successfully!");
   };
 
   const saveItinerary = async () => {
@@ -218,23 +360,35 @@ const ItineraryPlanner = () => {
 
     setSaving(true);
     try {
-      const { error } = await supabase.from("saved_itineraries").insert({
+      const { error } = await supabase.from("saved_itineraries").insert([{
         user_id: user.id,
         title: itineraryTitle,
         days: parseInt(days),
-        interests,
-        itinerary_data: itinerary,
-      });
+        guests: parseInt(guests),
+        interests: interests as any,
+        itinerary_data: {
+          plan: itinerary,
+          hotel: selectedHotel,
+          vehicle: selectedVehicle,
+          totalCost,
+          hotelCategory,
+          vehicleType,
+          vehicleCategory,
+        } as any,
+      }]);
 
       if (error) throw error;
       toast.success("Itinerary saved successfully!");
       setItineraryTitle("");
+      setSaveDialogOpen(false);
     } catch (error: any) {
       toast.error(error.message || "Failed to save itinerary");
     } finally {
       setSaving(false);
     }
   };
+
+  const availableVehicleTypes = getAvailableVehicleTypes();
 
   return (
     <section id="itinerary" className="py-20 px-4 bg-muted/30">
@@ -259,9 +413,10 @@ const ItineraryPlanner = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
+            {/* Basic Info */}
+            <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="days">Number of Days</Label>
+                <Label htmlFor="days">Number of Days *</Label>
                 <Input
                   id="days"
                   type="number"
@@ -275,7 +430,32 @@ const ItineraryPlanner = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="budget">Total Budget (USD)</Label>
+                <Label htmlFor="guests">Number of Guests *</Label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="guests"
+                    type="number"
+                    min="1"
+                    placeholder="How many guests?"
+                    value={guests}
+                    onChange={(e) => {
+                      setGuests(e.target.value);
+                      // Reset vehicle type if current selection is not available
+                      const newGuestCount = parseInt(e.target.value) || 1;
+                      if (newGuestCount > 7 && vehicleType !== "Bus") {
+                        setVehicleType("Bus");
+                      } else if (newGuestCount > 4 && vehicleType === "Car") {
+                        setVehicleType("");
+                      }
+                    }}
+                    className="pl-10 border-border"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="budget">Total Budget (USD) *</Label>
                 <Input
                   id="budget"
                   type="number"
@@ -288,11 +468,12 @@ const ItineraryPlanner = () => {
               </div>
             </div>
 
+            {/* Interests */}
             <div className="space-y-3">
-              <Label>What interests you?</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Label>What interests you? *</Label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {Object.keys(interests).map((interest) => (
-                  <div key={interest} className="flex items-center space-x-2">
+                  <div key={interest} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                     <Checkbox
                       id={interest}
                       checked={interests[interest as keyof typeof interests]}
@@ -311,6 +492,86 @@ const ItineraryPlanner = () => {
               </div>
             </div>
 
+            {/* Hotel Selection */}
+            <div className="space-y-3">
+              <Label>Hotel Category *</Label>
+              <div className="grid grid-cols-3 gap-4">
+                {["Low", "Middle", "Luxury"].map((category) => (
+                  <div
+                    key={category}
+                    onClick={() => setHotelCategory(category)}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      hotelCategory === category 
+                        ? "border-primary bg-primary/10" 
+                        : "hover:border-primary/50"
+                    }`}
+                  >
+                    <p className="font-medium text-center">{category === "Low" ? "Budget" : category}</p>
+                    <p className="text-xs text-muted-foreground text-center">
+                      {category === "Low" && "Affordable stays"}
+                      {category === "Middle" && "Comfortable options"}
+                      {category === "Luxury" && "Premium experience"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {hotelCategory && (
+                <p className="text-sm text-muted-foreground">
+                  {getFilteredHotels().length} {hotelCategory.toLowerCase()} hotel(s) available
+                </p>
+              )}
+            </div>
+
+            {/* Vehicle Selection */}
+            <div className="space-y-3">
+              <Label>Vehicle Type *</Label>
+              {parseInt(guests) > 4 && (
+                <p className="text-sm text-amber-600">
+                  ⚠️ For {guests} guests, {parseInt(guests) > 7 ? "only Bus is" : "Van or Bus are"} recommended
+                </p>
+              )}
+              <div className="grid grid-cols-3 gap-4">
+                {availableVehicleTypes.map((type) => (
+                  <div
+                    key={type.value}
+                    onClick={() => setVehicleType(type.value)}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      vehicleType === type.value 
+                        ? "border-primary bg-primary/10" 
+                        : "hover:border-primary/50"
+                    }`}
+                  >
+                    <p className="font-medium text-center">{type.value}</p>
+                    <p className="text-xs text-muted-foreground text-center">{type.label.split("(")[1]?.replace(")", "")}</p>
+                  </div>
+                ))}
+              </div>
+
+              {vehicleType && (
+                <div className="space-y-2">
+                  <Label>Vehicle Class</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {["Mid", "Luxury"].map((category) => (
+                      <div
+                        key={category}
+                        onClick={() => setVehicleCategory(category)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          vehicleCategory === category 
+                            ? "border-primary bg-primary/10" 
+                            : "hover:border-primary/50"
+                        }`}
+                      >
+                        <p className="font-medium text-center">{category}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {getFilteredVehicles().length} {vehicleType.toLowerCase()}(s) available
+                  </p>
+                </div>
+              )}
+            </div>
+
             <Button 
               onClick={generateItinerary} 
               className="w-full bg-gradient-tropical hover:opacity-90 text-white"
@@ -324,6 +585,21 @@ const ItineraryPlanner = () => {
               <div className="mt-8 space-y-4">
                 <div className="p-6 bg-gradient-hero rounded-xl border border-border/30">
                   <h3 className="text-xl font-semibold text-foreground mb-4">Your Personalized Itinerary</h3>
+                  
+                  {/* Summary */}
+                  <div className="grid md:grid-cols-2 gap-4 mb-6 p-4 bg-background/50 rounded-lg">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Accommodation</p>
+                      <p className="font-medium">{selectedHotel?.hotel_name} ({hotelCategory})</p>
+                      <p className="text-sm text-primary">${selectedHotel?.per_night_charge}/night</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Transport</p>
+                      <p className="font-medium">{selectedVehicle?.model} ({vehicleType})</p>
+                      <p className="text-sm text-primary">${selectedVehicle?.per_km_charge}/km</p>
+                    </div>
+                  </div>
+
                   <div className="space-y-4">
                     {itinerary.map((dayPlan, index) => (
                       <Card key={index} className="p-4 bg-background/50">
@@ -367,24 +643,35 @@ const ItineraryPlanner = () => {
                   </div>
                 </div>
 
-                {user ? (
+                <div className="flex gap-4">
                   <Button
-                    onClick={() => setSaveDialogOpen(true)}
-                    className="w-full bg-gradient-tropical text-white"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Itinerary
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => navigate("/auth")}
+                    onClick={downloadPDF}
                     variant="outline"
-                    className="w-full"
+                    className="flex-1"
                   >
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Sign in to save your itinerary
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
                   </Button>
-                )}
+                  
+                  {user ? (
+                    <Button
+                      onClick={() => setSaveDialogOpen(true)}
+                      className="flex-1 bg-gradient-tropical text-white"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Itinerary
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => navigate("/auth")}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Sign in to save
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

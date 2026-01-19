@@ -13,6 +13,9 @@ import Accommodation from "./pages/Accommodation";
 import Weather from "./pages/Weather";
 import MyBookings from "./pages/MyBookings";
 import SavedItineraries from "./pages/SavedItineraries";
+import AdminDashboard from "./pages/AdminDashboard";
+import DriverDashboard from "./pages/DriverDashboard";
+import HotelOwnerDashboard from "./pages/HotelOwnerDashboard";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +35,9 @@ const App = () => (
           <Route path="/weather" element={<Weather />} />
           <Route path="/my-bookings" element={<MyBookings />} />
           <Route path="/saved-itineraries" element={<SavedItineraries />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/driver-dashboard" element={<DriverDashboard />} />
+          <Route path="/hotel-owner-dashboard" element={<HotelOwnerDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
