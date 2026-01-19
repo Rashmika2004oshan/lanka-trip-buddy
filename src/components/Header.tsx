@@ -1,12 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogIn, LogOut, User } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { LogIn, LogOut, User, ShieldCheck, Car, Hotel } from "lucide-react";
 import { toast } from "sonner";
 
 const Header = () => {
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
+  const { isAdmin, isDriver, isHotelOwner } = useUserRole();
 
   const handleAuthClick = async () => {
     if (user) {
@@ -22,7 +24,7 @@ const Header = () => {
       <nav className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-display font-bold bg-gradient-tropical bg-clip-text text-transparent">
+            <h1 className="text-2xl font-display font-bold bg-gradient-tropical bg-clip-text text-transparent cursor-pointer" onClick={() => navigate("/")}>
               Sri Lanka Travel
             </h1>
             <div className="hidden md:flex gap-6">
@@ -38,12 +40,6 @@ const Header = () => {
               <a href="/weather" className="text-foreground/80 hover:text-foreground transition-colors">
                 Weather
               </a>
-              <a href="/driver-survey" className="text-foreground/80 hover:text-foreground transition-colors">
-                List Vehicle
-              </a>
-              <a href="/hotel-survey" className="text-foreground/80 hover:text-foreground transition-colors">
-                List Hotel
-              </a>
               {user && (
                 <>
                   <a href="/my-bookings" className="text-foreground/80 hover:text-foreground transition-colors">
@@ -58,6 +54,26 @@ const Header = () => {
           </div>
           
           <div className="flex items-center gap-4">
+            {/* Role-based dashboard links */}
+            {isAdmin && (
+              <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="gap-1">
+                <ShieldCheck className="h-4 w-4" />
+                Admin
+              </Button>
+            )}
+            {isDriver && (
+              <Button variant="ghost" size="sm" onClick={() => navigate("/driver-dashboard")} className="gap-1">
+                <Car className="h-4 w-4" />
+                Driver
+              </Button>
+            )}
+            {isHotelOwner && (
+              <Button variant="ghost" size="sm" onClick={() => navigate("/hotel-owner-dashboard")} className="gap-1">
+                <Hotel className="h-4 w-4" />
+                Hotel
+              </Button>
+            )}
+            
             {user && (
               <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4" />
