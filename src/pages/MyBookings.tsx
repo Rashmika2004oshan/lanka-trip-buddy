@@ -15,7 +15,7 @@ interface Booking {
   subtotal: number;
   service_charge: number;
   total_amount: number;
-  card_last_four: string;
+  payment_method: string;
   booking_status: string;
   created_at: string;
   
@@ -230,7 +230,7 @@ const MyBookings = () => {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-3">
                         <CreditCard className="h-4 w-4" />
-                        <span>Paid with card ending in {booking.card_last_four}</span>
+                        <span>Payment method: {booking.payment_method}</span>
                       </div>
                     </div>
                   </div>

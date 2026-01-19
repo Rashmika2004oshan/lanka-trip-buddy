@@ -13,14 +13,23 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Header from "@/components/Header";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 const formSchema = z.object({
-  vehicleType: z.string().min(1, "Vehicle type is required"),
-  model: z.string().min(1, "Model is required"),
-  vehicleNumber: z.string().min(1, "Vehicle number is required"),
-  perKmCharge: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "Per km charge must be a positive number"
+  vehicleType: z.string().min(1, "Vehicle type is required").max(50, "Vehicle type must be less than 50 characters"),
+  model: z.string().min(1, "Model is required").max(100, "Model must be less than 100 characters"),
+  vehicleNumber: z.string().min(1, "Vehicle number is required").max(20, "Vehicle number must be less than 20 characters"),
+  perKmCharge: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0 && Number(val) <= 10000, {
+    message: "Per km charge must be a positive number (max 10,000)"
   }),
-  image: z.any().refine((files) => files?.length > 0, "Image is required"),
+  image: z.any()
+    .refine((files) => files?.length > 0, "Image is required")
+    .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, "Max file size is 5MB")
+    .refine(
+      (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+      "Only JPEG, PNG, and WebP images are allowed"
+    ),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -49,13 +58,29 @@ const DriverSurvey = () => {
     setIsSubmitting(true);
 
     try {
-      // Upload image
+      // Upload image with secure filename
       const file = data.image[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      
+      // Validate file extension matches content type
+      const validExtensions: Record<string, string[]> = {
+        'image/jpeg': ['jpg', 'jpeg'],
+        'image/png': ['png'],
+        'image/webp': ['webp'],
+      };
+      
+      if (!fileExt || !validExtensions[file.type]?.includes(fileExt)) {
+        throw new Error("File extension does not match file type");
+      }
+      
+      // Use crypto.randomUUID for secure unique filename
+      const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
         .from('vehicle-images')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          contentType: file.type,
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 

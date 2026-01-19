@@ -50,10 +50,8 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
   const [numberOfPersons, setNumberOfPersons] = useState("1");
   const [roomType, setRoomType] = useState("");
   
-  // Payment fields
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
+  // Payment confirmation checkbox
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
   const calculateSubtotal = () => {
     if (bookingType === "vehicle") {
@@ -82,8 +80,8 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
       return;
     }
 
-    if (cardNumber.length !== 16 || cardCvv.length !== 3) {
-      toast.error("Please enter valid card details");
+    if (!paymentConfirmed) {
+      toast.error("Please confirm payment to proceed");
       return;
     }
 
@@ -114,7 +112,7 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
         subtotal,
         service_charge: serviceCharge,
         total_amount: totalAmount,
-        card_last_four: cardNumber.slice(-4),
+        payment_method: "card",
         booking_status: "confirmed",
         ...(bookingType === "vehicle" ? {
           vehicle_id: itemData.id,
@@ -146,7 +144,7 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
         estimatedKm,
         subtotal: subtotal.toFixed(2),
         serviceCharge: serviceCharge.toFixed(2),
-        cardLastFour: cardNumber.slice(-4),
+        ownerEmail: itemData.owner_email,
       } : {
         hotelName: itemData.hotel_name,
         city: itemData.city,
@@ -157,7 +155,7 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
         roomType,
         subtotal: subtotal.toFixed(2),
         serviceCharge: serviceCharge.toFixed(2),
-        cardLastFour: cardNumber.slice(-4),
+        ownerEmail: itemData.owner_email,
       };
 
       await supabase.functions.invoke("send-booking-notification", {
@@ -334,42 +332,25 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
           )}
 
           <div className="border-t pt-4">
-            <h3 className="font-semibold mb-4">Payment Details</h3>
+            <h3 className="font-semibold mb-4">Payment Confirmation</h3>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="cardNumber">Card Number *</Label>
-                <Input
-                  id="cardNumber"
-                  placeholder="1234 5678 9012 3456"
-                  maxLength={16}
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, ''))}
-                />
+              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <strong>Demo Mode:</strong> This is a demonstration system. No actual payment will be processed. 
+                  Click the checkbox below to simulate payment confirmation.
+                </p>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="expiry">Expiry Date *</Label>
-                  <Input
-                    id="expiry"
-                    placeholder="MM/YY"
-                    maxLength={5}
-                    value={cardExpiry}
-                    onChange={(e) => setCardExpiry(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cvv">CVV *</Label>
-                  <Input
-                    id="cvv"
-                    placeholder="123"
-                    maxLength={3}
-                    type="password"
-                    value={cardCvv}
-                    onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ''))}
-                  />
-                </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="paymentConfirm"
+                  checked={paymentConfirmed}
+                  onChange={(e) => setPaymentConfirmed(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="paymentConfirm" className="text-sm font-normal">
+                  I confirm that I want to proceed with this booking (Demo payment)
+                </Label>
               </div>
             </div>
           </div>

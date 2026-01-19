@@ -18,7 +18,6 @@ export type Database = {
         Row: {
           booking_status: string
           booking_type: string
-          card_last_four: string | null
           check_in_date: string | null
           check_out_date: string | null
           created_at: string
@@ -41,7 +40,6 @@ export type Database = {
         Insert: {
           booking_status?: string
           booking_type: string
-          card_last_four?: string | null
           check_in_date?: string | null
           check_out_date?: string | null
           created_at?: string
@@ -64,7 +62,6 @@ export type Database = {
         Update: {
           booking_status?: string
           booking_type?: string
-          card_last_four?: string | null
           check_in_date?: string | null
           check_out_date?: string | null
           created_at?: string
