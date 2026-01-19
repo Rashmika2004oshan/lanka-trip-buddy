@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -10,10 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, Car, Hotel, Calendar, Clock, CheckCircle, XCircle, 
-  Loader2, ShieldCheck, UserCheck, UserX 
+  Loader2, ShieldCheck, TrendingUp, DollarSign, UserPlus
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, parseISO, isWithinInterval } from "date-fns";
 import { toast } from "sonner";
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, Legend
+} from "recharts";
 
 interface RoleRequest {
   id: string;
@@ -32,6 +36,8 @@ interface UserWithRole {
   full_name: string | null;
 }
 
+const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
@@ -43,6 +49,9 @@ const AdminDashboard = () => {
     totalVehicles: 0,
     totalHotels: 0,
     pendingRequests: 0,
+    totalRevenue: 0,
+    todayBookings: 0,
+    newUsersThisWeek: 0,
   });
   const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
   const [users, setUsers] = useState<UserWithRole[]>([]);
@@ -96,11 +105,29 @@ const AdminDashboard = () => {
       // Map users with their roles
       const usersWithRoles: UserWithRole[] = profiles.map(p => ({
         id: p.id,
-        email: "", // We don't have access to email from profiles
+        email: "",
         created_at: p.created_at,
         full_name: p.full_name,
         roles: allRoles.filter(r => r.user_id === p.id).map(r => r.role),
       }));
+
+      // Calculate stats
+      const today = new Date();
+      const todayStart = startOfDay(today);
+      const todayEnd = endOfDay(today);
+      const weekAgo = subDays(today, 7);
+
+      const todayBookings = bookingsData.filter(b => {
+        const bookingDate = parseISO(b.created_at);
+        return isWithinInterval(bookingDate, { start: todayStart, end: todayEnd });
+      });
+
+      const newUsersThisWeek = profiles.filter(p => {
+        const createdAt = parseISO(p.created_at);
+        return createdAt >= weekAgo;
+      });
+
+      const totalRevenue = bookingsData.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
 
       setUsers(usersWithRoles);
       setBookings(bookingsData);
@@ -114,6 +141,9 @@ const AdminDashboard = () => {
         totalVehicles: vehiclesData.length,
         totalHotels: hotelsData.length,
         pendingRequests: requests.filter(r => r.status === 'pending').length,
+        totalRevenue,
+        todayBookings: todayBookings.length,
+        newUsersThisWeek: newUsersThisWeek.length,
       });
     } catch (error) {
       console.error("Error fetching admin data:", error);
@@ -123,9 +153,69 @@ const AdminDashboard = () => {
     }
   };
 
+  // Chart data calculations
+  const bookingsByDay = useMemo(() => {
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(new Date(), 6 - i);
+      return format(date, 'MMM dd');
+    });
+
+    return last7Days.map(day => {
+      const count = bookings.filter(b => format(parseISO(b.created_at), 'MMM dd') === day).length;
+      const revenue = bookings
+        .filter(b => format(parseISO(b.created_at), 'MMM dd') === day)
+        .reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+      return { day, bookings: count, revenue };
+    });
+  }, [bookings]);
+
+  const revenueByType = useMemo(() => {
+    const vehicleRevenue = bookings
+      .filter(b => b.booking_type === 'vehicle')
+      .reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+    const hotelRevenue = bookings
+      .filter(b => b.booking_type === 'accommodation')
+      .reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+    
+    return [
+      { name: 'Vehicle Rentals', value: vehicleRevenue },
+      { name: 'Accommodations', value: hotelRevenue },
+    ];
+  }, [bookings]);
+
+  const usersByRole = useMemo(() => {
+    const roleCounts: Record<string, number> = { user: 0, driver: 0, hotel_owner: 0, admin: 0 };
+    users.forEach(u => {
+      if (u.roles.length === 0) {
+        roleCounts.user++;
+      } else {
+        u.roles.forEach(role => {
+          roleCounts[role] = (roleCounts[role] || 0) + 1;
+        });
+      }
+    });
+    return [
+      { name: 'Users', value: roleCounts.user, fill: CHART_COLORS[0] },
+      { name: 'Drivers', value: roleCounts.driver, fill: CHART_COLORS[1] },
+      { name: 'Hotel Owners', value: roleCounts.hotel_owner, fill: CHART_COLORS[2] },
+      { name: 'Admins', value: roleCounts.admin, fill: CHART_COLORS[3] },
+    ];
+  }, [users]);
+
+  const registrationsByDay = useMemo(() => {
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(new Date(), 6 - i);
+      return format(date, 'MMM dd');
+    });
+
+    return last7Days.map(day => {
+      const count = users.filter(u => format(parseISO(u.created_at), 'MMM dd') === day).length;
+      return { day, registrations: count };
+    });
+  }, [users]);
+
   const handleRoleRequest = async (requestId: string, userId: string, role: string, action: 'approved' | 'rejected') => {
     try {
-      // Update request status
       const { error: updateError } = await supabase
         .from("role_requests")
         .update({ status: action })
@@ -133,7 +223,6 @@ const AdminDashboard = () => {
 
       if (updateError) throw updateError;
 
-      // If approved, add the role
       if (action === 'approved') {
         const { error: roleError } = await supabase
           .from("user_roles")
@@ -176,18 +265,18 @@ const AdminDashboard = () => {
             <ShieldCheck className="h-8 w-8 text-primary" />
             <h1 className="text-4xl font-bold text-foreground">Admin Dashboard</h1>
           </div>
-          <p className="text-muted-foreground">Manage users, bookings, and system settings</p>
+          <p className="text-muted-foreground">Manage users, bookings, and view analytics</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <Users className="h-8 w-8 text-blue-500" />
+                <Users className="h-6 w-6 text-blue-500" />
                 <div>
                   <p className="text-2xl font-bold">{stats.totalUsers}</p>
-                  <p className="text-sm text-muted-foreground">Users</p>
+                  <p className="text-xs text-muted-foreground">Users</p>
                 </div>
               </div>
             </CardContent>
@@ -195,10 +284,10 @@ const AdminDashboard = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <Calendar className="h-8 w-8 text-green-500" />
+                <Calendar className="h-6 w-6 text-green-500" />
                 <div>
                   <p className="text-2xl font-bold">{stats.totalBookings}</p>
-                  <p className="text-sm text-muted-foreground">Bookings</p>
+                  <p className="text-xs text-muted-foreground">Bookings</p>
                 </div>
               </div>
             </CardContent>
@@ -206,10 +295,10 @@ const AdminDashboard = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <Car className="h-8 w-8 text-orange-500" />
+                <Car className="h-6 w-6 text-orange-500" />
                 <div>
                   <p className="text-2xl font-bold">{stats.totalVehicles}</p>
-                  <p className="text-sm text-muted-foreground">Vehicles</p>
+                  <p className="text-xs text-muted-foreground">Vehicles</p>
                 </div>
               </div>
             </CardContent>
@@ -217,10 +306,10 @@ const AdminDashboard = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <Hotel className="h-8 w-8 text-purple-500" />
+                <Hotel className="h-6 w-6 text-purple-500" />
                 <div>
                   <p className="text-2xl font-bold">{stats.totalHotels}</p>
-                  <p className="text-sm text-muted-foreground">Hotels</p>
+                  <p className="text-xs text-muted-foreground">Hotels</p>
                 </div>
               </div>
             </CardContent>
@@ -228,24 +317,212 @@ const AdminDashboard = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <Clock className="h-8 w-8 text-yellow-500" />
+                <Clock className="h-6 w-6 text-yellow-500" />
                 <div>
                   <p className="text-2xl font-bold">{stats.pendingRequests}</p>
-                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <DollarSign className="h-6 w-6 text-emerald-500" />
+                <div>
+                  <p className="text-xl font-bold">{(stats.totalRevenue / 1000).toFixed(1)}K</p>
+                  <p className="text-xs text-muted-foreground">Revenue</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="h-6 w-6 text-cyan-500" />
+                <div>
+                  <p className="text-2xl font-bold">{stats.todayBookings}</p>
+                  <p className="text-xs text-muted-foreground">Today</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <UserPlus className="h-6 w-6 text-pink-500" />
+                <div>
+                  <p className="text-2xl font-bold">{stats.newUsersThisWeek}</p>
+                  <p className="text-xs text-muted-foreground">New Users</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="requests" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="analytics" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="requests">Role Requests</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="bookings">All Bookings</TabsTrigger>
+            <TabsTrigger value="bookings">Bookings</TabsTrigger>
             <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
             <TabsTrigger value="hotels">Hotels</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="analytics">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Bookings & Revenue Chart */}
+              <Card className="col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Bookings & Revenue (Last 7 Days)
+                  </CardTitle>
+                  <CardDescription>Daily bookings count and revenue trends</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={bookingsByDay}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="day" className="text-xs" />
+                      <YAxis yAxisId="left" className="text-xs" />
+                      <YAxis yAxisId="right" orientation="right" className="text-xs" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Area 
+                        yAxisId="left"
+                        type="monotone" 
+                        dataKey="bookings" 
+                        stroke="hsl(var(--primary))" 
+                        fill="hsl(var(--primary))" 
+                        fillOpacity={0.3}
+                        name="Bookings"
+                      />
+                      <Area 
+                        yAxisId="right"
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="hsl(var(--chart-2))" 
+                        fill="hsl(var(--chart-2))" 
+                        fillOpacity={0.3}
+                        name="Revenue (LKR)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Revenue by Type */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Revenue by Type
+                  </CardTitle>
+                  <CardDescription>Vehicle rentals vs accommodations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={revenueByType}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {revenueByType.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => [`LKR ${value.toLocaleString()}`, 'Revenue']}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Users by Role */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Users by Role
+                  </CardTitle>
+                  <CardDescription>Distribution of user roles</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={usersByRole} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis type="number" className="text-xs" />
+                      <YAxis type="category" dataKey="name" className="text-xs" width={80} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Bar dataKey="value" name="Users" radius={[0, 4, 4, 0]}>
+                        {usersByRole.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* New Registrations */}
+              <Card className="col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5" />
+                    New Registrations (Last 7 Days)
+                  </CardTitle>
+                  <CardDescription>Daily user registration trends</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={registrationsByDay}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="day" className="text-xs" />
+                      <YAxis className="text-xs" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Bar 
+                        dataKey="registrations" 
+                        fill="hsl(var(--primary))" 
+                        radius={[4, 4, 0, 0]}
+                        name="Registrations"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           <TabsContent value="requests">
             <Card>

@@ -86,9 +86,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Format booking details based on type with sanitized values
     let detailsHtml = "";
-    const recipients = [adminEmail];
+    let ownerEmail: string | null = null;
+    let itemName = "";
 
     if (bookingType === "vehicle") {
+      itemName = bookingDetails.vehicleModel;
       detailsHtml = `
         <h3>Vehicle Booking Details</h3>
         <p><strong>Vehicle:</strong> ${escapeHtml(bookingDetails.vehicleModel)}</p>
@@ -97,11 +99,9 @@ const handler = async (req: Request): Promise<Response> => {
         <p><strong>Rental End:</strong> ${escapeHtml(bookingDetails.rentalEndDate)}</p>
         <p><strong>Estimated KM:</strong> ${escapeHtml(bookingDetails.estimatedKm)}</p>
       `;
-      // Add driver/owner email if available
-      if (bookingDetails.ownerEmail) {
-        recipients.push(bookingDetails.ownerEmail);
-      }
+      ownerEmail = bookingDetails.ownerEmail || null;
     } else {
+      itemName = bookingDetails.hotelName;
       detailsHtml = `
         <h3>Accommodation Booking Details</h3>
         <p><strong>Hotel:</strong> ${escapeHtml(bookingDetails.hotelName)}</p>
@@ -112,50 +112,152 @@ const handler = async (req: Request): Promise<Response> => {
         <p><strong>Number of Persons:</strong> ${escapeHtml(String(bookingDetails.numberOfPersons))}</p>
         <p><strong>Room Type:</strong> ${escapeHtml(bookingDetails.roomType)}</p>
       `;
-      // Add hotel owner email if available
-      if (bookingDetails.ownerEmail) {
-        recipients.push(bookingDetails.ownerEmail);
-      }
+      ownerEmail = bookingDetails.ownerEmail || null;
     }
 
-    console.log("Sending notification to:", recipients);
+    const paymentInfoHtml = `
+      <div style="background-color: #dbeafe; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3>Payment Information</h3>
+        <p><strong>Subtotal:</strong> LKR ${escapeHtml(bookingDetails.subtotal)}</p>
+        <p><strong>Service Charge (10%):</strong> LKR ${escapeHtml(bookingDetails.serviceCharge)}</p>
+        <p style="font-size: 18px; font-weight: bold;"><strong>Total Amount:</strong> LKR ${escapeHtml(String(totalAmount))}</p>
+        <p><strong>Payment Method:</strong> Card (Demo)</p>
+      </div>
+    `;
 
-    const emailResponse = await resend.emails.send({
-      from: "Sri Lanka Travel <onboarding@resend.dev>",
-      to: recipients,
-      subject: `New ${bookingType === 'vehicle' ? 'Vehicle' : 'Accommodation'} Booking`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">New Booking Notification</h2>
-          
-          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3>Customer Information</h3>
-            <p><strong>Name:</strong> ${escapeHtml(customerName)}</p>
-            <p><strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
+    const emailPromises = [];
+
+    // 1. Send email to Admin
+    console.log("Sending notification to admin:", adminEmail);
+    emailPromises.push(
+      resend.emails.send({
+        from: "Sri Lanka Travel <onboarding@resend.dev>",
+        to: [adminEmail],
+        subject: `[Admin] New ${bookingType === 'vehicle' ? 'Vehicle' : 'Accommodation'} Booking - ${escapeHtml(itemName)}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">🔔 New Booking Notification (Admin)</h2>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3>Customer Information</h3>
+              <p><strong>Name:</strong> ${escapeHtml(customerName)}</p>
+              <p><strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
+            </div>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              ${detailsHtml}
+            </div>
+            
+            ${paymentInfoHtml}
+            
+            <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
+              This is an automated notification from your Sri Lanka Travel booking system.
+            </p>
           </div>
-          
-          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            ${detailsHtml}
+        `,
+      })
+    );
+
+    // 2. Send confirmation email to Customer
+    console.log("Sending confirmation to customer:", customerEmail);
+    emailPromises.push(
+      resend.emails.send({
+        from: "Sri Lanka Travel <onboarding@resend.dev>",
+        to: [customerEmail],
+        subject: `Booking Confirmed - ${escapeHtml(itemName)}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">✅ Booking Confirmation</h2>
+            
+            <p>Dear ${escapeHtml(customerName)},</p>
+            <p>Thank you for your booking! Your reservation has been confirmed.</p>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              ${detailsHtml}
+            </div>
+            
+            ${paymentInfoHtml}
+            
+            <div style="background-color: #dcfce7; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #16a34a;">What's Next?</h3>
+              <p>You can view your booking details in your dashboard at any time.</p>
+              <p>If you have any questions, please contact our support team.</p>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
+              Thank you for choosing Sri Lanka Travel!<br>
+              This is an automated confirmation email.
+            </p>
           </div>
-          
-          <div style="background-color: #dbeafe; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3>Payment Information</h3>
-            <p><strong>Subtotal:</strong> LKR ${escapeHtml(bookingDetails.subtotal)}</p>
-            <p><strong>Service Charge (10%):</strong> LKR ${escapeHtml(bookingDetails.serviceCharge)}</p>
-            <p style="font-size: 18px; font-weight: bold;"><strong>Total Amount:</strong> LKR ${escapeHtml(String(totalAmount))}</p>
-            <p><strong>Payment Method:</strong> Card (Demo)</p>
-          </div>
-          
-          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
-            This is an automated notification from your Sri Lanka Travel booking system.
-          </p>
-        </div>
-      `,
+        `,
+      })
+    );
+
+    // 3. Send notification to Hotel Owner or Vehicle Driver (if email available)
+    if (ownerEmail) {
+      console.log("Sending notification to owner:", ownerEmail);
+      const ownerType = bookingType === 'vehicle' ? 'Driver' : 'Hotel Owner';
+      emailPromises.push(
+        resend.emails.send({
+          from: "Sri Lanka Travel <onboarding@resend.dev>",
+          to: [ownerEmail],
+          subject: `[${ownerType}] New Booking Received - ${escapeHtml(itemName)}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #2563eb;">🎉 New Booking Received!</h2>
+              
+              <p>Congratulations! You have received a new booking.</p>
+              
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3>Customer Information</h3>
+                <p><strong>Name:</strong> ${escapeHtml(customerName)}</p>
+                <p><strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
+              </div>
+              
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                ${detailsHtml}
+              </div>
+              
+              ${paymentInfoHtml}
+              
+              <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #d97706;">Action Required</h3>
+                <p>Please check your dashboard for more details and prepare for the customer's arrival.</p>
+              </div>
+              
+              <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
+                This is an automated notification from Sri Lanka Travel booking system.
+              </p>
+            </div>
+          `,
+        })
+      );
+    }
+
+    // Wait for all emails to be sent
+    const results = await Promise.allSettled(emailPromises);
+    
+    // Log results
+    results.forEach((result, index) => {
+      const recipient = index === 0 ? 'Admin' : index === 1 ? 'Customer' : 'Owner';
+      if (result.status === 'fulfilled') {
+        console.log(`${recipient} email sent successfully:`, result.value);
+      } else {
+        console.error(`${recipient} email failed:`, result.reason);
+      }
     });
 
-    console.log("Booking notification sent successfully:", emailResponse);
+    // Check if at least the customer email was sent
+    const customerEmailResult = results[1];
+    if (customerEmailResult.status === 'rejected') {
+      throw new Error("Failed to send customer confirmation email");
+    }
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      emailsSent: results.filter(r => r.status === 'fulfilled').length,
+      totalEmails: results.length
+    }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
