@@ -98,6 +98,36 @@ export type Database = {
           },
         ]
       }
+      destinations: {
+        Row: {
+          city: string | null
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          interest_category: string
+          name: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          image_url?: string | null
+          interest_category: string
+          name: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          interest_category?: string
+          name?: string
+        }
+        Relationships: []
+      }
       favorite_places: {
         Row: {
           created_at: string
@@ -308,6 +338,68 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vehicle_classes: {
+        Row: {
+          class_name: string
+          created_at: string
+          description: string | null
+          id: string
+          price_multiplier: number | null
+          vehicle_type_id: string
+        }
+        Insert: {
+          class_name: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          price_multiplier?: number | null
+          vehicle_type_id: string
+        }
+        Update: {
+          class_name?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          price_multiplier?: number | null
+          vehicle_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_classes_vehicle_type_id_fkey"
+            columns: ["vehicle_type_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          max_passengers: number
+          min_passengers: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_passengers: number
+          min_passengers: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_passengers?: number
+          min_passengers?: number
+          name?: string
         }
         Relationships: []
       }
