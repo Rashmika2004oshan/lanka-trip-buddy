@@ -37,6 +37,30 @@ interface Vehicle {
   vehicle_category: string | null;
 }
 
+interface Destination {
+  id: string;
+  interest_category: string;
+  name: string;
+  description: string;
+  city: string | null;
+}
+
+interface VehicleType {
+  id: string;
+  name: string;
+  min_passengers: number;
+  max_passengers: number;
+  description: string | null;
+}
+
+interface VehicleClass {
+  id: string;
+  vehicle_type_id: string;
+  class_name: string;
+  price_multiplier: number;
+  description: string | null;
+}
+
 const ItineraryPlanner = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -57,47 +81,67 @@ const ItineraryPlanner = () => {
   const [saving, setSaving] = useState(false);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+  const [vehicleClasses, setVehicleClasses] = useState<VehicleClass[]>([]);
   const [totalCost, setTotalCost] = useState(0);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
-    fetchHotelsAndVehicles();
+    fetchAllData();
   }, []);
 
-  const fetchHotelsAndVehicles = async () => {
+  const fetchAllData = async () => {
     try {
-      const [hotelsData, vehiclesData] = await Promise.all([
+      const [hotelsData, vehiclesData, destinationsData, vehicleTypesData, vehicleClassesData] = await Promise.all([
         supabase.from('hotels').select('*'),
-        supabase.from('vehicles').select('*')
+        supabase.from('vehicles').select('*'),
+        supabase.from('destinations').select('*'),
+        supabase.from('vehicle_types').select('*'),
+        supabase.from('vehicle_classes').select('*')
       ]);
       
       if (hotelsData.data) setHotels(hotelsData.data);
       if (vehiclesData.data) setVehicles(vehiclesData.data);
+      if (destinationsData.data) setDestinations(destinationsData.data);
+      if (vehicleTypesData.data) setVehicleTypes(vehicleTypesData.data);
+      if (vehicleClassesData.data) setVehicleClasses(vehicleClassesData.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
   };
 
-  // Get available vehicle types based on guest count
+  // Get destinations for selected interests
+  const getDestinationsForInterests = () => {
+    const selectedInterests = Object.entries(interests)
+      .filter(([_, selected]) => selected)
+      .map(([interest]) => interest.charAt(0).toUpperCase() + interest.slice(1));
+    
+    return destinations.filter(d => selectedInterests.includes(d.interest_category));
+  };
+
+  // Get available vehicle types based on guest count using database data
   const getAvailableVehicleTypes = () => {
     const guestCount = parseInt(guests) || 1;
     
-    if (guestCount > 7) {
-      return [{ value: "Bus", label: "Bus (8+ passengers)" }];
-    } else if (guestCount > 4) {
-      return [
-        { value: "Van", label: "Van (5-7 passengers)" },
-        { value: "Bus", label: "Bus (8+ passengers)" },
-      ];
-    } else {
-      return [
-        { value: "Car", label: "Car (1-4 passengers)" },
-        { value: "Van", label: "Van (5-7 passengers)" },
-        { value: "Bus", label: "Bus (8+ passengers)" },
-      ];
-    }
+    return vehicleTypes
+      .filter(vt => guestCount >= vt.min_passengers && guestCount <= vt.max_passengers || 
+                   (vt.name === 'Bus' && guestCount > 7) ||
+                   (vt.name === 'Van' && guestCount >= 5 && guestCount <= 7) ||
+                   (vt.name === 'Car' && guestCount <= 4))
+      .map(vt => ({
+        value: vt.name,
+        label: `${vt.name} (${vt.min_passengers}-${vt.max_passengers === 30 ? '+' : vt.max_passengers} passengers)`
+      }));
+  };
+
+  // Get available vehicle classes for selected type
+  const getAvailableVehicleClasses = () => {
+    const selectedType = vehicleTypes.find(vt => vt.name === vehicleType);
+    if (!selectedType) return [];
+    return vehicleClasses.filter(vc => vc.vehicle_type_id === selectedType.id);
   };
 
   // Get filtered hotels based on category
@@ -155,18 +199,16 @@ const ItineraryPlanner = () => {
       return;
     }
 
-    // City mapping based on interests
-    const cityMapping: Record<string, string[]> = {
-      culture: ["Kandy", "Sigiriya", "Colombo"],
-      beaches: ["Mirissa", "Galle", "Colombo"],
-      nature: ["Kandy", "Sigiriya"],
-      wildlife: ["Sigiriya"],
-    };
+    // Get destinations from database based on selected interests
+    const interestCategories = selectedInterests.map(i => i.charAt(0).toUpperCase() + i.slice(1));
+    const relevantDestinations = destinations.filter(d => 
+      interestCategories.includes(d.interest_category)
+    );
 
-    // Get relevant cities
+    // Get relevant cities from destinations
     const relevantCities = [...new Set(
-      selectedInterests.flatMap(interest => cityMapping[interest] || [])
-    )];
+      relevantDestinations.map(d => d.city).filter(Boolean)
+    )] as string[];
 
     // Filter hotels by category and cities
     const categoryHotels = hotels.filter(h => 
@@ -174,13 +216,18 @@ const ItineraryPlanner = () => {
       (relevantCities.length === 0 || relevantCities.includes(h.city))
     ).sort((a, b) => b.stars - a.stars);
 
+    // If no hotels in relevant cities, get all hotels of the category
+    const availableHotels = categoryHotels.length > 0 
+      ? categoryHotels 
+      : hotels.filter(h => h.category === hotelCategory).sort((a, b) => b.stars - a.stars);
+
     // Filter vehicles by type
     const typeVehicles = vehicles.filter(v => 
       v.vehicle_type.toLowerCase().includes(vehicleType.toLowerCase()) &&
       (!vehicleCategory || v.vehicle_category === vehicleCategory)
     ).sort((a, b) => a.per_km_charge - b.per_km_charge);
 
-    if (categoryHotels.length === 0) {
+    if (availableHotels.length === 0) {
       toast.error(`No ${hotelCategory} hotels found. Try a different category.`);
       return;
     }
@@ -190,42 +237,10 @@ const ItineraryPlanner = () => {
       return;
     }
 
-    const chosenHotel = categoryHotels[0];
+    const chosenHotel = availableHotels[0];
     const chosenVehicle = typeVehicles[0];
     setSelectedHotel(chosenHotel);
     setSelectedVehicle(chosenVehicle);
-
-    // Activity suggestions
-    const suggestions: Record<string, string[]> = {
-      culture: [
-        "Visit Sigiriya Rock Fortress and ancient frescoes",
-        "Explore Temple of the Tooth in Kandy",
-        "Tour Anuradhapura ancient city ruins",
-        "Discover Polonnaruwa archaeological site",
-        "Experience traditional Kandyan dance performance",
-      ],
-      beaches: [
-        "Relax at Mirissa Beach and watch whales",
-        "Surf at Arugam Bay's pristine waves",
-        "Explore Unawatuna's coral reefs",
-        "Enjoy sunset at Negombo Beach",
-        "Visit secluded Tangalle beaches",
-      ],
-      nature: [
-        "Trek through Horton Plains and World's End",
-        "Ride scenic train through tea country",
-        "Visit Nuwara Eliya tea plantations",
-        "Explore Sinharaja Rainforest",
-        "Hike Adam's Peak at sunrise",
-      ],
-      wildlife: [
-        "Safari in Yala National Park for leopards",
-        "Elephant watching in Udawalawe",
-        "Visit Pinnawala Elephant Orphanage",
-        "Bird watching in Bundala National Park",
-        "Whale watching in Mirissa",
-      ],
-    };
 
     const plan: any[] = [];
     const avgKmPerDay = 100;
@@ -233,14 +248,27 @@ const ItineraryPlanner = () => {
 
     for (let i = 0; i < numDays; i++) {
       const interest = selectedInterests[i % selectedInterests.length];
-      const activities = suggestions[interest];
-      const activity = activities[i % activities.length];
+      const interestCategory = interest.charAt(0).toUpperCase() + interest.slice(1);
+      
+      // Get destinations for this interest from database
+      const interestDestinations = relevantDestinations.filter(d => 
+        d.interest_category === interestCategory
+      );
+      
+      // Select destination for this day
+      const destination = interestDestinations[i % Math.max(interestDestinations.length, 1)];
+      const activity = destination 
+        ? `Visit ${destination.name} - ${destination.description}`
+        : `Explore ${interestCategory} attractions in Sri Lanka`;
       
       const dailyTransportCost = chosenVehicle.per_km_charge * avgKmPerDay;
       
       plan.push({
         day: i + 1,
         activity,
+        destination: destination?.name || null,
+        destinationCity: destination?.city || null,
+        interest: interestCategory,
         hotel: chosenHotel.hotel_name,
         hotelCity: chosenHotel.city,
         hotelCost: chosenHotel.per_night_charge,
