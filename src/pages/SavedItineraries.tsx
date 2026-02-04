@@ -158,7 +158,12 @@ const SavedItineraries = () => {
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">Interests:</p>
                       <div className="flex flex-wrap gap-2">
-                        {itinerary.interests.map((interest, index) => (
+                        {(Array.isArray(itinerary.interests) 
+                          ? itinerary.interests 
+                          : typeof itinerary.interests === 'string' 
+                            ? JSON.parse(itinerary.interests) 
+                            : []
+                        ).map((interest: string, index: number) => (
                           <Badge key={index} variant="secondary">
                             {interest}
                           </Badge>
