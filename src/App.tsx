@@ -16,6 +16,8 @@ import SavedItineraries from "./pages/SavedItineraries";
 import AdminDashboard from "./pages/AdminDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import HotelOwnerDashboard from "./pages/HotelOwnerDashboard";
+import MapDirections from "./pages/MapDirections";
+import TrainBooking from "./pages/TrainBooking";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +40,8 @@ const App = () => (
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/driver-dashboard" element={<DriverDashboard />} />
           <Route path="/hotel-owner-dashboard" element={<HotelOwnerDashboard />} />
+          <Route path="/map" element={<MapDirections />} />
+          <Route path="/train-booking" element={<TrainBooking />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -47,3 +51,4 @@ const App = () => (
 );
 
 export default App;
+

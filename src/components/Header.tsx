@@ -5,6 +5,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { LogIn, LogOut, User, ShieldCheck, Car, Hotel } from "lucide-react";
 import { toast } from "sonner";
 
+
 const Header = () => {
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
@@ -39,6 +40,12 @@ const Header = () => {
               </a>
               <a href="/weather" className="text-foreground/80 hover:text-foreground transition-colors">
                 Weather
+              </a>
+              <a href="/map" className="text-foreground/80 hover:text-foreground transition-colors">
+                Map
+              </a>
+              <a href="/train-booking" className="text-foreground/80 hover:text-foreground transition-colors">
+                Trains
               </a>
               {user && (
                 <>

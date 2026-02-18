@@ -295,84 +295,120 @@ const ItineraryPlanner = () => {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
+
+    // Header background bar
+    doc.setFillColor(24, 106, 171);
+    doc.rect(0, 0, pageWidth, 40, "F");
+
     // Title
-    doc.setFontSize(24);
-    doc.setTextColor(33, 37, 41);
-    doc.text("Sri Lanka Travel Itinerary", pageWidth / 2, 25, { align: "center" });
-    
-    // Subtitle
-    doc.setFontSize(12);
-    doc.setTextColor(108, 117, 125);
-    doc.text(`${days} Days | ${guests} Guest(s) | Budget: $${budget}`, pageWidth / 2, 35, { align: "center" });
-    
-    // Selected interests
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text("Sri Lanka Travel Itinerary", pageWidth / 2, 18, { align: "center" });
+    doc.setFontSize(11);
+    doc.text("Lanka Trip Buddy — Personalized Travel Plan", pageWidth / 2, 28, { align: "center" });
+
+    // Client info section
+    doc.setFillColor(245, 247, 250);
+    doc.rect(0, 40, pageWidth, 38, "F");
+
+    doc.setFontSize(11);
+    doc.setTextColor(50, 50, 50);
+    if (user?.email) {
+      doc.text(`Client Email: ${user.email}`, 15, 52);
+    }
+    doc.text(`Duration: ${days} Day${parseInt(days) > 1 ? "s" : ""}`, 15, 61);
+    doc.text(`Guests: ${guests} person${parseInt(guests) > 1 ? "s" : ""}`, pageWidth / 2, 52);
+    doc.text(`Budget: USD $${budget}`, pageWidth / 2, 61);
+
+    // Generated date
+    doc.setFontSize(9);
+    doc.setTextColor(130, 130, 130);
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}`, 15, 72);
+
+    // Interests
     const selectedInterests = Object.entries(interests)
       .filter(([_, selected]) => selected)
       .map(([interest]) => interest.charAt(0).toUpperCase() + interest.slice(1))
       .join(", ");
-    doc.text(`Interests: ${selectedInterests}`, pageWidth / 2, 42, { align: "center" });
-    
-    // Accommodation & Transport info
-    doc.setFontSize(11);
-    doc.setTextColor(33, 37, 41);
-    doc.text(`Accommodation: ${selectedHotel?.hotel_name || 'N/A'} (${hotelCategory})`, 15, 55);
-    doc.text(`Transport: ${selectedVehicle?.model || 'N/A'} (${vehicleType})`, 15, 62);
-    
-    // Divider line
+    doc.setFontSize(10);
+    doc.setTextColor(50, 50, 50);
+    doc.text(`Interests: ${selectedInterests}`, pageWidth / 2, 72, { align: "right" });
+
+    // Divider
+    doc.setDrawColor(180, 180, 180);
+    doc.line(15, 78, pageWidth - 15, 78);
+
+    // Accommodation & Transport
+    doc.setFontSize(12);
+    doc.setTextColor(24, 106, 171);
+    doc.text("Accommodation & Transport", 15, 88);
+
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+    doc.text(`🏨 Hotel: ${selectedHotel?.hotel_name || "N/A"} — ${selectedHotel?.city || ""} (${hotelCategory} category, ${selectedHotel?.stars || 0}★)`, 15, 97);
+    doc.text(`   Price: $${selectedHotel?.per_night_charge || 0}/night`, 15, 105);
+    doc.text(`🚗 Vehicle: ${selectedVehicle?.model || "N/A"} — ${vehicleType}${vehicleCategory ? ` (${vehicleCategory} class)` : ""}`, 15, 114);
+    doc.text(`   Rate: $${selectedVehicle?.per_km_charge || 0}/km`, 15, 122);
+
     doc.setDrawColor(200, 200, 200);
-    doc.line(15, 68, pageWidth - 15, 68);
-    
-    let yPos = 78;
-    
+    doc.line(15, 128, pageWidth - 15, 128);
+
+    // Destinations heading
+    doc.setFontSize(12);
+    doc.setTextColor(24, 106, 171);
+    doc.text("Daily Itinerary", 15, 137);
+
+    let yPos = 147;
+
     itinerary.forEach((dayPlan, index) => {
-      // Check if we need a new page
-      if (yPos > 250) {
+      if (yPos > 255) {
         doc.addPage();
-        yPos = 25;
+        yPos = 20;
       }
-      
-      // Day header
-      doc.setFontSize(14);
-      doc.setTextColor(25, 135, 84);
-      doc.text(`Day ${dayPlan.day}`, 15, yPos);
-      
+
+      // Day chip
+      doc.setFillColor(24, 106, 171);
+      doc.roundedRect(15, yPos - 5, 28, 8, 2, 2, "F");
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`Day ${dayPlan.day}`, 29, yPos + 1, { align: "center" });
+
       // Activity
-      doc.setFontSize(11);
-      doc.setTextColor(33, 37, 41);
-      doc.text(dayPlan.activity, 15, yPos + 8);
-      
-      // Details
       doc.setFontSize(10);
-      doc.setTextColor(108, 117, 125);
-      doc.text(`Hotel: ${dayPlan.hotel} (${dayPlan.hotelCity}) - $${dayPlan.hotelCost.toFixed(2)}`, 15, yPos + 16);
-      doc.text(`Transport: ${dayPlan.transport} - $${dayPlan.transportCost.toFixed(2)}`, 15, yPos + 23);
-      doc.text(`Day Total: $${dayPlan.dailyTotal.toFixed(2)}`, 15, yPos + 30);
-      
-      yPos += 42;
+      doc.setTextColor(30, 30, 30);
+      const actText = doc.splitTextToSize(dayPlan.activity, pageWidth - 60);
+      doc.text(actText, 48, yPos + 1);
+
+      yPos += actText.length * 5 + 5;
+
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`📍 ${dayPlan.hotel} (${dayPlan.hotelCity})  |  🚗 ${dayPlan.transport}  |  💵 $${dayPlan.dailyTotal.toFixed(2)}/day`, 18, yPos);
+      yPos += 10;
+
+      if (index < itinerary.length - 1) {
+        doc.setDrawColor(230, 230, 230);
+        doc.line(15, yPos - 3, pageWidth - 15, yPos - 3);
+      }
     });
-    
-    // Total cost
-    if (yPos > 250) {
-      doc.addPage();
-      yPos = 25;
-    }
-    
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, yPos, pageWidth - 15, yPos);
-    
-    doc.setFontSize(16);
-    doc.setTextColor(25, 135, 84);
-    doc.text(`Total Estimated Cost: $${totalCost.toFixed(2)}`, pageWidth / 2, yPos + 12, { align: "center" });
-    
+
+    // Total Cost
+    if (yPos > 260) { doc.addPage(); yPos = 20; }
+    doc.setFillColor(24, 106, 171);
+    doc.rect(15, yPos + 2, pageWidth - 30, 14, "F");
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Total Estimated Budget: USD $${totalCost.toFixed(2)}`, pageWidth / 2, yPos + 12, { align: "center" });
+
     // Footer
-    doc.setFontSize(9);
-    doc.setTextColor(108, 117, 125);
-    doc.text("Generated by Sri Lanka Travel Planner", pageWidth / 2, 285, { align: "center" });
-    
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 160);
+    doc.text("Lanka Trip Buddy — Experience the Pearl of the Indian Ocean", pageWidth / 2, 286, { align: "center" });
+
     doc.save(`sri-lanka-itinerary-${days}days.pdf`);
     toast.success("PDF downloaded successfully!");
   };
+
 
   const saveItinerary = async () => {
     if (!user) {
@@ -554,7 +590,7 @@ const ItineraryPlanner = () => {
             <div className="space-y-3">
               <Label>Vehicle Type *</Label>
               {parseInt(guests) > 4 && (
-                <p className="text-sm text-amber-600">
+                <p className="text-sm text-secondary-foreground bg-secondary/20 px-2 py-1 rounded">
                   ⚠️ For {guests} guests, {parseInt(guests) > 7 ? "only Bus is" : "Van or Bus are"} recommended
                 </p>
               )}

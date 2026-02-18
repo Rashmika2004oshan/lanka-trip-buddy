@@ -97,97 +97,130 @@ const SavedItineraries = () => {
   const downloadPDF = (itinerary: SavedItinerary) => {
     const doc = new jsPDF();
     const interests = parseInterests(itinerary.interests);
-    
-    // Title
-    doc.setFontSize(24);
-    doc.setTextColor(34, 139, 34);
-    doc.text(itinerary.title, 20, 25);
-    
-    // Line separator
-    doc.setDrawColor(34, 139, 34);
-    doc.setLineWidth(0.5);
-    doc.line(20, 30, 190, 30);
-    
-    // Trip Details
-    doc.setFontSize(12);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Created: ${format(new Date(itinerary.created_at), "MMMM dd, yyyy")}`, 20, 40);
-    doc.text(`Duration: ${itinerary.days} days`, 20, 48);
-    
-    // Interests
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text("Interests:", 20, 62);
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Header bar
+    doc.setFillColor(24, 106, 171);
+    doc.rect(0, 0, pageWidth, 40, "F");
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text("Sri Lanka Travel Itinerary", pageWidth / 2, 17, { align: "center" });
     doc.setFontSize(11);
-    doc.setTextColor(80, 80, 80);
-    doc.text(interests.join(", "), 20, 70);
-    
-    let yPos = 85;
-    
+    doc.text("Lanka Trip Buddy — Personalized Travel Plan", pageWidth / 2, 28, { align: "center" });
+
+    // Client info section
+    doc.setFillColor(245, 247, 250);
+    doc.rect(0, 40, pageWidth, 45, "F");
+
+    doc.setFontSize(12);
+    doc.setTextColor(24, 106, 171);
+    doc.text(itinerary.title, 15, 52);
+
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+    if (user?.email) {
+      doc.text(`Client Email: ${user.email}`, 15, 62);
+    }
+    doc.text(`Duration: ${itinerary.days} day${itinerary.days > 1 ? "s" : ""}`, 15, 71);
+    const guests = (itinerary as any).guests;
+    if (guests) doc.text(`Guests: ${guests} person${guests > 1 ? "s" : ""}`, pageWidth / 2, 62);
+    doc.text(`Created: ${format(new Date(itinerary.created_at), "MMMM dd, yyyy")}`, pageWidth / 2, 71);
+
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Interests: ${interests.join(", ")}`, 15, 80);
+
+    // Divider
+    doc.setDrawColor(180, 180, 180);
+    doc.line(15, 86, pageWidth - 15, 86);
+
+    let yPos = 96;
+
     // Destinations
-    if (itinerary.itinerary_data?.destinations?.length > 0) {
-      doc.setFontSize(14);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Recommended Destinations:", 20, yPos);
+    const plan: any[] = itinerary.itinerary_data?.plan || [];
+    if (plan.length > 0) {
+      doc.setFontSize(12);
+      doc.setTextColor(24, 106, 171);
+      doc.text("Daily Destinations", 15, yPos);
       yPos += 10;
-      doc.setFontSize(11);
-      doc.setTextColor(80, 80, 80);
-      itinerary.itinerary_data.destinations.forEach((dest: any) => {
-        doc.text(`• ${dest.name} - ${dest.description}`, 25, yPos);
-        yPos += 8;
+
+      plan.forEach((dayPlan: any, index: number) => {
+        if (yPos > 255) { doc.addPage(); yPos = 20; }
+
+        doc.setFillColor(24, 106, 171);
+        doc.roundedRect(15, yPos - 5, 28, 8, 2, 2, "F");
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Day ${dayPlan.day}`, 29, yPos + 1, { align: "center" });
+
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        const actText = doc.splitTextToSize(dayPlan.activity || "", pageWidth - 60);
+        doc.text(actText, 48, yPos + 1);
+        yPos += actText.length * 5 + 5;
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`📍 ${dayPlan.hotel || ""} (${dayPlan.hotelCity || ""})  |  🚗 ${dayPlan.transport || ""}  |  💵 $${Number(dayPlan.dailyTotal || 0).toFixed(2)}/day`, 18, yPos);
+        yPos += 10;
+
+        if (index < plan.length - 1) {
+          doc.setDrawColor(230, 230, 230);
+          doc.line(15, yPos - 3, pageWidth - 15, yPos - 3);
+        }
       });
       yPos += 5;
     }
-    
+
     // Accommodation
     if (itinerary.itinerary_data?.hotel) {
+      if (yPos > 245) { doc.addPage(); yPos = 20; }
       const hotel = itinerary.itinerary_data.hotel;
-      doc.setFontSize(14);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Accommodation:", 20, yPos);
-      yPos += 10;
-      doc.setFontSize(11);
-      doc.setTextColor(80, 80, 80);
-      doc.text(`${hotel.hotel_name}`, 25, yPos);
+      doc.setFontSize(12);
+      doc.setTextColor(24, 106, 171);
+      doc.text("Accommodation", 15, yPos);
+      yPos += 8;
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`🏨 ${hotel.hotel_name} — ${hotel.city}`, 15, yPos);
       yPos += 7;
-      doc.text(`Location: ${hotel.city}`, 25, yPos);
-      yPos += 7;
-      doc.text(`Category: ${hotel.category} | Stars: ${"★".repeat(hotel.stars)}`, 25, yPos);
-      yPos += 7;
-      doc.text(`Price: LKR ${hotel.per_night_charge}/night`, 25, yPos);
+      doc.text(`Category: ${hotel.category}  |  Rating: ${"★".repeat(hotel.stars || 0)}  |  LKR ${hotel.per_night_charge}/night`, 15, yPos);
       yPos += 12;
     }
-    
+
     // Transport
     if (itinerary.itinerary_data?.vehicle) {
+      if (yPos > 250) { doc.addPage(); yPos = 20; }
       const vehicle = itinerary.itinerary_data.vehicle;
-      doc.setFontSize(14);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Transport:", 20, yPos);
-      yPos += 10;
-      doc.setFontSize(11);
-      doc.setTextColor(80, 80, 80);
-      doc.text(`${vehicle.vehicle_type} - ${vehicle.model}`, 25, yPos);
-      yPos += 7;
-      doc.text(`Price: LKR ${vehicle.per_km_charge}/km`, 25, yPos);
+      doc.setFontSize(12);
+      doc.setTextColor(24, 106, 171);
+      doc.text("Vehicle / Transport", 15, yPos);
+      yPos += 8;
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`🚗 ${vehicle.vehicle_type} — ${vehicle.model}  |  LKR ${vehicle.per_km_charge}/km`, 15, yPos);
       yPos += 12;
     }
-    
-    // Total Cost
+
+    // Total Budget
     if (itinerary.itinerary_data?.totalCost) {
-      doc.setFontSize(16);
-      doc.setTextColor(34, 139, 34);
-      doc.text(`Estimated Total: LKR ${Number(itinerary.itinerary_data.totalCost).toFixed(2)}`, 20, yPos);
+      if (yPos > 260) { doc.addPage(); yPos = 20; }
+      doc.setFillColor(24, 106, 171);
+      doc.rect(15, yPos, pageWidth - 30, 14, "F");
+      doc.setFontSize(13);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`Total Budget: LKR ${Number(itinerary.itinerary_data.totalCost).toFixed(2)}`, pageWidth / 2, yPos + 9, { align: "center" });
     }
-    
+
     // Footer
-    doc.setFontSize(10);
-    doc.setTextColor(150, 150, 150);
-    doc.text("Generated by Lanka Trip Buddy", 20, 280);
-    
-    doc.save(`${itinerary.title.replace(/\s+/g, '-')}-itinerary.pdf`);
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 160);
+    doc.text("Lanka Trip Buddy — Experience the Pearl of the Indian Ocean", pageWidth / 2, 286, { align: "center" });
+
+    doc.save(`${itinerary.title.replace(/\s+/g, "-")}-itinerary.pdf`);
     toast.success("PDF downloaded successfully!");
   };
+
 
   if (authLoading || loading) {
     return (
