@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Header from "@/components/Header";
@@ -17,7 +18,8 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const formSchema = z.object({
-  vehicleType: z.string().min(1, "Vehicle type is required").max(50, "Vehicle type must be less than 50 characters"),
+  vehicleType: z.enum(["Car", "Van", "Bus"], { required_error: "Vehicle type is required" }),
+  vehicleCategory: z.enum(["Mid", "Luxury"], { required_error: "Vehicle category is required" }),
   model: z.string().min(1, "Model is required").max(100, "Model must be less than 100 characters"),
   vehicleNumber: z.string().min(1, "Vehicle number is required").max(20, "Vehicle number must be less than 20 characters"),
   perKmCharge: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0 && Number(val) <= 10000, {
@@ -39,8 +41,10 @@ const DriverSurvey = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [vehicleType, setVehicleType] = useState<string>("");
+  const [vehicleCategory, setVehicleCategory] = useState<string>("");
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   });
 
@@ -62,7 +66,6 @@ const DriverSurvey = () => {
       const file = data.image[0];
       const fileExt = file.name.split('.').pop()?.toLowerCase();
       
-      // Validate file extension matches content type
       const validExtensions: Record<string, string[]> = {
         'image/jpeg': ['jpg', 'jpeg'],
         'image/png': ['png'],
@@ -73,7 +76,6 @@ const DriverSurvey = () => {
         throw new Error("File extension does not match file type");
       }
       
-      // Use crypto.randomUUID for secure unique filename
       const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from('vehicle-images')
@@ -86,12 +88,12 @@ const DriverSurvey = () => {
 
       const imageUrl = supabase.storage.from('vehicle-images').getPublicUrl(fileName).data.publicUrl;
 
-      // Insert vehicle data
       const { error: insertError } = await supabase
         .from('vehicles')
         .insert({
           user_id: user.id,
           vehicle_type: data.vehicleType,
+          vehicle_category: data.vehicleCategory,
           model: data.model,
           vehicle_number: data.vehicleNumber,
           per_km_charge: Number(data.perKmCharge),
@@ -129,13 +131,46 @@ const DriverSurvey = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div>
                 <Label htmlFor="vehicleType">Vehicle Type</Label>
-                <Input
-                  id="vehicleType"
-                  {...register("vehicleType")}
-                  placeholder="e.g., Car, Van, SUV"
-                />
+                <Select
+                  onValueChange={(value) => {
+                    setVehicleType(value);
+                    setValue("vehicleType", value as "Car" | "Van" | "Bus");
+                  }}
+                  value={vehicleType}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select vehicle type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Car">Car (1-4 passengers)</SelectItem>
+                    <SelectItem value="Van">Van (5-7 passengers)</SelectItem>
+                    <SelectItem value="Bus">Bus (8+ passengers)</SelectItem>
+                  </SelectContent>
+                </Select>
                 {errors.vehicleType && (
                   <p className="text-sm text-destructive mt-1">{errors.vehicleType.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="vehicleCategory">Vehicle Category</Label>
+                <Select
+                  onValueChange={(value) => {
+                    setVehicleCategory(value);
+                    setValue("vehicleCategory", value as "Mid" | "Luxury");
+                  }}
+                  value={vehicleCategory}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Mid">Mid Range</SelectItem>
+                    <SelectItem value="Luxury">Luxury</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.vehicleCategory && (
+                  <p className="text-sm text-destructive mt-1">{errors.vehicleCategory.message}</p>
                 )}
               </div>
 

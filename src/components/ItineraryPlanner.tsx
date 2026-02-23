@@ -86,7 +86,7 @@ const ItineraryPlanner = () => {
   const [vehicleClasses, setVehicleClasses] = useState<VehicleClass[]>([]);
   const [totalCost, setTotalCost] = useState(0);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
+  const [selectedHotels, setSelectedHotels] = useState<(Hotel | null)[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
@@ -160,6 +160,27 @@ const ItineraryPlanner = () => {
     });
   };
 
+  // Find best hotel for a given city and category
+  const findHotelForCity = (city: string | null, category: string): Hotel | null => {
+    if (!city) return null;
+    // Exact city match first
+    const cityHotels = hotels.filter(h => 
+      h.category === category && h.city.toLowerCase() === city.toLowerCase()
+    ).sort((a, b) => b.stars - a.stars);
+    if (cityHotels.length > 0) return cityHotels[0];
+    
+    // Nearby city match (partial)
+    const nearbyHotels = hotels.filter(h => 
+      h.category === category && (
+        h.city.toLowerCase().includes(city.toLowerCase()) ||
+        city.toLowerCase().includes(h.city.toLowerCase())
+      )
+    ).sort((a, b) => b.stars - a.stars);
+    if (nearbyHotels.length > 0) return nearbyHotels[0];
+    
+    return null;
+  };
+
   const generateItinerary = () => {
     const numDays = parseInt(days);
     const numGuests = parseInt(guests) || 1;
@@ -205,29 +226,16 @@ const ItineraryPlanner = () => {
       interestCategories.includes(d.interest_category)
     );
 
-    // Get relevant cities from destinations
-    const relevantCities = [...new Set(
-      relevantDestinations.map(d => d.city).filter(Boolean)
-    )] as string[];
-
-    // Filter hotels by category and cities
-    const categoryHotels = hotels.filter(h => 
-      h.category === hotelCategory &&
-      (relevantCities.length === 0 || relevantCities.includes(h.city))
-    ).sort((a, b) => b.stars - a.stars);
-
-    // If no hotels in relevant cities, get all hotels of the category
-    const availableHotels = categoryHotels.length > 0 
-      ? categoryHotels 
-      : hotels.filter(h => h.category === hotelCategory).sort((a, b) => b.stars - a.stars);
-
     // Filter vehicles by type
     const typeVehicles = vehicles.filter(v => 
       v.vehicle_type.toLowerCase().includes(vehicleType.toLowerCase()) &&
       (!vehicleCategory || v.vehicle_category === vehicleCategory)
     ).sort((a, b) => a.per_km_charge - b.per_km_charge);
 
-    if (availableHotels.length === 0) {
+    // Fallback hotel for when no city-specific hotel is found
+    const fallbackHotels = hotels.filter(h => h.category === hotelCategory).sort((a, b) => b.stars - a.stars);
+
+    if (fallbackHotels.length === 0) {
       toast.error(`No ${hotelCategory} hotels found. Try a different category.`);
       return;
     }
@@ -237,12 +245,11 @@ const ItineraryPlanner = () => {
       return;
     }
 
-    const chosenHotel = availableHotels[0];
     const chosenVehicle = typeVehicles[0];
-    setSelectedHotel(chosenHotel);
     setSelectedVehicle(chosenVehicle);
 
     const plan: any[] = [];
+    const dayHotels: (Hotel | null)[] = [];
     const avgKmPerDay = 100;
     let total = 0;
 
@@ -261,28 +268,42 @@ const ItineraryPlanner = () => {
         ? `Visit ${destination.name} - ${destination.description}`
         : `Explore ${interestCategory} attractions in Sri Lanka`;
       
+      // Find hotel matching destination city
+      const destinationCity = destination?.city || null;
+      let dayHotel = findHotelForCity(destinationCity, hotelCategory);
+      
+      // If no hotel found for this city, use fallback
+      if (!dayHotel) {
+        dayHotel = fallbackHotels[0];
+      }
+      
+      dayHotels.push(dayHotel);
+      
       const dailyTransportCost = chosenVehicle.per_km_charge * avgKmPerDay;
+      const hotelCost = dayHotel.per_night_charge;
       
       plan.push({
         day: i + 1,
         activity,
         destination: destination?.name || null,
-        destinationCity: destination?.city || null,
+        destinationCity,
         interest: interestCategory,
-        hotel: chosenHotel.hotel_name,
-        hotelCity: chosenHotel.city,
-        hotelCost: chosenHotel.per_night_charge,
-        hotelCategory: chosenHotel.category,
+        hotel: dayHotel.hotel_name,
+        hotelCity: dayHotel.city,
+        hotelCost,
+        hotelCategory: dayHotel.category,
+        hotelStars: dayHotel.stars,
         transport: chosenVehicle.model,
         transportType: chosenVehicle.vehicle_type,
         transportCost: dailyTransportCost,
-        dailyTotal: chosenHotel.per_night_charge + dailyTransportCost
+        dailyTotal: hotelCost + dailyTransportCost
       });
       
-      total += chosenHotel.per_night_charge + dailyTransportCost;
+      total += hotelCost + dailyTransportCost;
     }
 
     setItinerary(plan);
+    setSelectedHotels(dayHotels);
     setTotalCost(total);
     toast.success("Itinerary generated successfully!");
   };
@@ -343,10 +364,18 @@ const ItineraryPlanner = () => {
     doc.setTextColor(24, 106, 171);
     doc.text("Accommodation & Transport", 15, 88);
 
+    // Get unique hotels used
+    const uniqueHotels = [...new Map(selectedHotels.filter(Boolean).map(h => [h!.id, h!])).values()];
+    
     doc.setFontSize(10);
     doc.setTextColor(60, 60, 60);
-    doc.text(`🏨 Hotel: ${selectedHotel?.hotel_name || "N/A"} — ${selectedHotel?.city || ""} (${hotelCategory} category, ${selectedHotel?.stars || 0}★)`, 15, 97);
-    doc.text(`   Price: $${selectedHotel?.per_night_charge || 0}/night`, 15, 105);
+    if (uniqueHotels.length === 1) {
+      doc.text(`🏨 Hotel: ${uniqueHotels[0].hotel_name} — ${uniqueHotels[0].city} (${hotelCategory} category, ${uniqueHotels[0].stars}★)`, 15, 97);
+      doc.text(`   Price: $${uniqueHotels[0].per_night_charge}/night`, 15, 105);
+    } else {
+      doc.text(`🏨 Hotels: ${uniqueHotels.length} hotels across destinations (${hotelCategory} category)`, 15, 97);
+      doc.text(`   Hotels change based on overnight destination city`, 15, 105);
+    }
     doc.text(`🚗 Vehicle: ${selectedVehicle?.model || "N/A"} — ${vehicleType}${vehicleCategory ? ` (${vehicleCategory} class)` : ""}`, 15, 114);
     doc.text(`   Rate: $${selectedVehicle?.per_km_charge || 0}/km`, 15, 122);
 
@@ -432,7 +461,7 @@ const ItineraryPlanner = () => {
         interests: interests as any,
         itinerary_data: {
           plan: itinerary,
-          hotel: selectedHotel,
+          hotels: selectedHotels,
           vehicle: selectedVehicle,
           totalCost,
           hotelCategory,
@@ -651,11 +680,13 @@ const ItineraryPlanner = () => {
                   <h3 className="text-xl font-semibold text-foreground mb-4">Your Personalized Itinerary</h3>
                   
                   {/* Summary */}
-                  <div className="grid md:grid-cols-2 gap-4 mb-6 p-4 bg-background/50 rounded-lg">
+                   <div className="grid md:grid-cols-2 gap-4 mb-6 p-4 bg-background/50 rounded-lg">
                     <div>
                       <p className="text-sm text-muted-foreground">Accommodation</p>
-                      <p className="font-medium">{selectedHotel?.hotel_name} ({hotelCategory})</p>
-                      <p className="text-sm text-primary">${selectedHotel?.per_night_charge}/night</p>
+                      <p className="font-medium">
+                        {[...new Set(selectedHotels.filter(Boolean).map(h => h!.hotel_name))].join(", ")} ({hotelCategory})
+                      </p>
+                      <p className="text-sm text-primary">Hotels matched to destination cities</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Transport</p>
