@@ -113,7 +113,7 @@ const Accommodation = () => {
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-primary">
-                        LKR {hotel.per_night_charge}/night
+                        USD {hotel.per_night_charge}/night
                       </span>
                       <Button 
                         onClick={() => {

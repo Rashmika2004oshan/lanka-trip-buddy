@@ -217,7 +217,7 @@ const HotelOwnerDashboard = () => {
                           </div>
                         </div>
                         <p className="text-sm font-medium text-primary mt-2">
-                          Earning: LKR {Number(booking.subtotal).toFixed(2)}
+                          Earning: USD {Number(booking.subtotal).toFixed(2)}
                         </p>
                       </div>
                     ))}
@@ -251,7 +251,7 @@ const HotelOwnerDashboard = () => {
                           {format(new Date(booking.check_in_date), "MMM dd")} - {format(new Date(booking.check_out_date), "MMM dd, yyyy")}
                         </p>
                         <p className="text-sm font-medium text-primary mt-1">
-                          Earned: LKR {Number(booking.subtotal).toFixed(2)}
+                          Earned: USD {Number(booking.subtotal).toFixed(2)}
                         </p>
                       </div>
                     ))}
@@ -290,7 +290,7 @@ const HotelOwnerDashboard = () => {
                           ))}
                         </div>
                         <p className="text-sm text-muted-foreground">{hotel.city} | {hotel.category}</p>
-                        <p className="text-sm font-medium text-primary">LKR {hotel.per_night_charge}/night</p>
+                        <p className="text-sm font-medium text-primary">USD {hotel.per_night_charge}/night</p>
                       </div>
                     ))}
                   </div>

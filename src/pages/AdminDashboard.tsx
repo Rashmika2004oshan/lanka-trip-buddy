@@ -411,7 +411,7 @@ const AdminDashboard = () => {
                         stroke="hsl(var(--chart-2))" 
                         fill="hsl(var(--chart-2))" 
                         fillOpacity={0.3}
-                        name="Revenue (LKR)"
+                        name="Revenue (USD)"
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -445,7 +445,7 @@ const AdminDashboard = () => {
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value: number) => [`LKR ${value.toLocaleString()}`, 'Revenue']}
+                        formatter={(value: number) => [`USD ${value.toLocaleString()}`, 'Revenue']}
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--background))', 
                           border: '1px solid hsl(var(--border))',
@@ -644,7 +644,7 @@ const AdminDashboard = () => {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Total: LKR {Number(booking.total_amount).toFixed(2)} | 
+                        Total: USD {Number(booking.total_amount).toFixed(2)} | 
                         {format(new Date(booking.created_at), " MMM dd, yyyy")}
                       </p>
                     </div>
@@ -669,7 +669,7 @@ const AdminDashboard = () => {
                       )}
                       <h4 className="font-medium">{vehicle.model}</h4>
                       <p className="text-sm text-muted-foreground">{vehicle.vehicle_type}</p>
-                      <p className="text-sm font-medium text-primary">LKR {vehicle.per_km_charge}/km</p>
+                      <p className="text-sm font-medium text-primary">USD {vehicle.per_km_charge}/km</p>
                     </div>
                   ))}
                 </div>
@@ -692,7 +692,7 @@ const AdminDashboard = () => {
                       )}
                       <h4 className="font-medium">{hotel.hotel_name}</h4>
                       <p className="text-sm text-muted-foreground">{hotel.city} | {hotel.category}</p>
-                      <p className="text-sm font-medium text-primary">LKR {hotel.per_night_charge}/night</p>
+                      <p className="text-sm font-medium text-primary">USD {hotel.per_night_charge}/night</p>
                     </div>
                   ))}
                 </div>

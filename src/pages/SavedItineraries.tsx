@@ -184,7 +184,7 @@ const SavedItineraries = () => {
       doc.setTextColor(60, 60, 60);
       doc.text(`🏨 ${hotel.hotel_name} — ${hotel.city}`, 15, yPos);
       yPos += 7;
-      doc.text(`Category: ${hotel.category}  |  Rating: ${"★".repeat(hotel.stars || 0)}  |  LKR ${hotel.per_night_charge}/night`, 15, yPos);
+      doc.text(`Category: ${hotel.category}  |  Rating: ${"★".repeat(hotel.stars || 0)}  |  USD ${hotel.per_night_charge}/night`, 15, yPos);
       yPos += 12;
     }
 
@@ -198,7 +198,7 @@ const SavedItineraries = () => {
       yPos += 8;
       doc.setFontSize(10);
       doc.setTextColor(60, 60, 60);
-      doc.text(`🚗 ${vehicle.vehicle_type} — ${vehicle.model}  |  LKR ${vehicle.per_km_charge}/km`, 15, yPos);
+      doc.text(`🚗 ${vehicle.vehicle_type} — ${vehicle.model}  |  USD ${vehicle.per_km_charge}/km`, 15, yPos);
       yPos += 12;
     }
 
@@ -209,7 +209,7 @@ const SavedItineraries = () => {
       doc.rect(15, yPos, pageWidth - 30, 14, "F");
       doc.setFontSize(13);
       doc.setTextColor(255, 255, 255);
-      doc.text(`Total Budget: LKR ${Number(itinerary.itinerary_data.totalCost).toFixed(2)}`, pageWidth / 2, yPos + 9, { align: "center" });
+      doc.text(`Total Budget: USD ${Number(itinerary.itinerary_data.totalCost).toFixed(2)}`, pageWidth / 2, yPos + 9, { align: "center" });
     }
 
     // Footer
@@ -324,7 +324,7 @@ const SavedItineraries = () => {
                           {itinerary.itinerary_data.hotel.hotel_name} - {itinerary.itinerary_data.hotel.city}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          LKR {itinerary.itinerary_data.hotel.per_night_charge}/night
+                          USD {itinerary.itinerary_data.hotel.per_night_charge}/night
                         </p>
                       </div>
                     )}
@@ -336,7 +336,7 @@ const SavedItineraries = () => {
                           {itinerary.itinerary_data.vehicle.vehicle_type} - {itinerary.itinerary_data.vehicle.model}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          LKR {itinerary.itinerary_data.vehicle.per_km_charge}/km
+                          USD {itinerary.itinerary_data.vehicle.per_km_charge}/km
                         </p>
                       </div>
                     )}
@@ -346,7 +346,7 @@ const SavedItineraries = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">Estimated Total Cost:</span>
                           <span className="text-lg font-bold text-primary">
-                            LKR {Number(itinerary.itinerary_data.totalCost).toFixed(2)}
+                            USD {Number(itinerary.itinerary_data.totalCost).toFixed(2)}
                           </span>
                         </div>
                       </div>

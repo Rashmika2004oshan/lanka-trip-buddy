@@ -87,7 +87,7 @@ const VehicleRental = () => {
                     <p className="text-muted-foreground mb-4">Number: {vehicle.vehicle_number}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-primary">
-                        LKR {vehicle.per_km_charge}/km
+                        USD {vehicle.per_km_charge}/km
                       </span>
                       <Button 
                         onClick={() => {
