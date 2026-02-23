@@ -217,15 +217,15 @@ const MyBookings = () => {
                       <div className="space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Subtotal:</span>
-                          <span>LKR {Number(booking.subtotal).toFixed(2)}</span>
+                          <span>USD {Number(booking.subtotal).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Service Charge (10%):</span>
-                          <span>LKR {Number(booking.service_charge).toFixed(2)}</span>
+                          <span>USD {Number(booking.service_charge).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-lg font-bold pt-2 border-t">
                           <span>Total:</span>
-                          <span className="text-primary">LKR {Number(booking.total_amount).toFixed(2)}</span>
+                          <span className="text-primary">USD {Number(booking.total_amount).toFixed(2)}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-3">

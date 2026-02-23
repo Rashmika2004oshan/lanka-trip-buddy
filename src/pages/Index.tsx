@@ -2,7 +2,6 @@ import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import AboutSection from "@/components/AboutSection";
 import PlacesSection from "@/components/PlacesSection";
-import MapSection from "@/components/MapSection";
 import ItineraryPlanner from "@/components/ItineraryPlanner";
 import TrainScheduleSection from "@/components/TrainScheduleSection";
 import Chatbot from "@/components/Chatbot";
@@ -15,7 +14,6 @@ const Index = () => {
         <HeroSection />
         <AboutSection />
         <PlacesSection />
-        <MapSection />
         <ItineraryPlanner />
         <TrainScheduleSection />
         <Chatbot />

@@ -215,7 +215,7 @@ const DriverDashboard = () => {
                           </div>
                         </div>
                         <p className="text-sm font-medium text-primary mt-2">
-                          Earning: LKR {Number(booking.subtotal).toFixed(2)}
+                          Earning: USD {Number(booking.subtotal).toFixed(2)}
                         </p>
                       </div>
                     ))}
@@ -249,7 +249,7 @@ const DriverDashboard = () => {
                           {format(new Date(booking.rental_start_date), "MMM dd")} - {format(new Date(booking.rental_end_date), "MMM dd, yyyy")}
                         </p>
                         <p className="text-sm font-medium text-primary mt-1">
-                          Earned: LKR {Number(booking.subtotal).toFixed(2)}
+                          Earned: USD {Number(booking.subtotal).toFixed(2)}
                         </p>
                       </div>
                     ))}
@@ -283,7 +283,7 @@ const DriverDashboard = () => {
                         )}
                         <h4 className="font-medium">{vehicle.model}</h4>
                         <p className="text-sm text-muted-foreground">{vehicle.vehicle_type} | {vehicle.vehicle_number}</p>
-                        <p className="text-sm font-medium text-primary">LKR {vehicle.per_km_charge}/km</p>
+                        <p className="text-sm font-medium text-primary">USD {vehicle.per_km_charge}/km</p>
                       </div>
                     ))}
                   </div>

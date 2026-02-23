@@ -247,7 +247,7 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
                   onChange={(e) => setEstimatedKm(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Rate: LKR {itemData.per_km_charge}/km
+                  Rate: USD {itemData.per_km_charge}/km
                 </p>
               </div>
             </>
@@ -325,7 +325,7 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
 
               {checkInDate && checkOutDate && (
                 <p className="text-sm text-muted-foreground">
-                  Number of nights: {calculateNights()} | Rate: LKR {itemData.per_night_charge}/night
+                  Number of nights: {calculateNights()} | Rate: USD {itemData.per_night_charge}/night
                 </p>
               )}
             </>
@@ -358,15 +358,15 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
           <div className="bg-secondary/50 p-4 rounded-lg space-y-2">
             <div className="flex justify-between text-sm">
               <span>Subtotal:</span>
-              <span>LKR {subtotal.toFixed(2)}</span>
+              <span>USD {subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>Service Charge (10%):</span>
-              <span>LKR {serviceCharge.toFixed(2)}</span>
+              <span>USD {serviceCharge.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold border-t pt-2">
               <span>Total Amount:</span>
-              <span className="text-primary">LKR {totalAmount.toFixed(2)}</span>
+              <span className="text-primary">USD {totalAmount.toFixed(2)}</span>
             </div>
           </div>
         </div>

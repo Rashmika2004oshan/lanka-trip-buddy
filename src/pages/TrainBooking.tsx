@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Train, ArrowRight, Clock, MapPin, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { Train, ArrowRight, Clock, MapPin, Info, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const STATIONS = ["Colombo", "Kandy", "Hatton", "Nanuoya", "Ella"];
 
@@ -159,10 +162,13 @@ interface TrainOption {
 }
 
 const TrainBooking = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [searched, setSearched] = useState(false);
   const [expandedTrain, setExpandedTrain] = useState<string | null>(null);
+  const [bookingLoading, setBookingLoading] = useState<string | null>(null);
 
   const availableTrains: TrainOption[] = searched && from && to && from !== to
     ? TRAIN_SCHEDULES[from]?.[to]?.trains || []
@@ -185,8 +191,48 @@ const TrainBooking = () => {
     }
   };
 
-  const handleBook = (train: TrainOption) => {
-    toast.success(`Booking info for ${train.name} — Please visit the official Railway Booking Portal or station counter to complete your booking.`);
+  const handleBook = async (train: TrainOption) => {
+    if (!user) {
+      toast.error("Please sign in to book a train");
+      navigate("/auth");
+      return;
+    }
+
+    setBookingLoading(train.number);
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      await supabase.functions.invoke("send-booking-notification", {
+        body: {
+          bookingType: "train",
+          bookingDetails: {
+            trainName: train.name,
+            trainNumber: train.number,
+            from,
+            to,
+            departure: train.departs,
+            arrival: train.arrives,
+            duration: train.duration,
+            class: train.class.join(", "),
+            days: train.days,
+          },
+          customerEmail: user.email,
+          customerName: profile?.full_name || "Guest",
+          totalAmount: 0,
+        },
+      });
+
+      toast.success(`Train booking request sent! You'll receive a confirmation email shortly.`);
+    } catch (error) {
+      console.error("Error sending train booking notification:", error);
+      toast.error("Failed to process booking. Please try again.");
+    } finally {
+      setBookingLoading(null);
+    }
   };
 
   const stationInfo: Record<string, { desc: string; icon: string }> = {
@@ -344,7 +390,9 @@ const TrainBooking = () => {
                         <Button
                           className="w-full mt-4 bg-gradient-tropical text-primary-foreground hover:opacity-90"
                           onClick={() => handleBook(train)}
+                          disabled={bookingLoading === train.number}
                         >
+                          {bookingLoading === train.number && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                           Book This Train
                         </Button>
                       </CardContent>

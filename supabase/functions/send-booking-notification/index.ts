@@ -100,6 +100,18 @@ const handler = async (req: Request): Promise<Response> => {
         <p><strong>Estimated KM:</strong> ${escapeHtml(bookingDetails.estimatedKm)}</p>
       `;
       ownerEmail = bookingDetails.ownerEmail || null;
+    } else if (bookingType === "train") {
+      itemName = bookingDetails.trainName || "Train";
+      detailsHtml = `
+        <h3>Train Booking Details</h3>
+        <p><strong>Train:</strong> ${escapeHtml(bookingDetails.trainName)} (#${escapeHtml(bookingDetails.trainNumber)})</p>
+        <p><strong>Route:</strong> ${escapeHtml(bookingDetails.from)} → ${escapeHtml(bookingDetails.to)}</p>
+        <p><strong>Departure:</strong> ${escapeHtml(bookingDetails.departure)}</p>
+        <p><strong>Arrival:</strong> ${escapeHtml(bookingDetails.arrival)}</p>
+        <p><strong>Duration:</strong> ${escapeHtml(bookingDetails.duration)}</p>
+        <p><strong>Class:</strong> ${escapeHtml(bookingDetails.class)}</p>
+        <p><strong>Schedule:</strong> ${escapeHtml(bookingDetails.days)}</p>
+      `;
     } else {
       itemName = bookingDetails.hotelName;
       detailsHtml = `
@@ -118,9 +130,9 @@ const handler = async (req: Request): Promise<Response> => {
     const paymentInfoHtml = `
       <div style="background-color: #dbeafe; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h3>Payment Information</h3>
-        <p><strong>Subtotal:</strong> LKR ${escapeHtml(bookingDetails.subtotal)}</p>
-        <p><strong>Service Charge (10%):</strong> LKR ${escapeHtml(bookingDetails.serviceCharge)}</p>
-        <p style="font-size: 18px; font-weight: bold;"><strong>Total Amount:</strong> LKR ${escapeHtml(String(totalAmount))}</p>
+        <p><strong>Subtotal:</strong> USD ${escapeHtml(bookingDetails.subtotal)}</p>
+        <p><strong>Service Charge (10%):</strong> USD ${escapeHtml(bookingDetails.serviceCharge)}</p>
+        <p style="font-size: 18px; font-weight: bold;"><strong>Total Amount:</strong> USD ${escapeHtml(String(totalAmount))}</p>
         <p><strong>Payment Method:</strong> Card (Demo)</p>
       </div>
     `;
@@ -133,7 +145,7 @@ const handler = async (req: Request): Promise<Response> => {
       resend.emails.send({
         from: "Sri Lanka Travel <onboarding@resend.dev>",
         to: [adminEmail],
-        subject: `[Admin] New ${bookingType === 'vehicle' ? 'Vehicle' : 'Accommodation'} Booking - ${escapeHtml(itemName)}`,
+        subject: `[Admin] New ${bookingType === 'vehicle' ? 'Vehicle' : bookingType === 'train' ? 'Train' : 'Accommodation'} Booking - ${escapeHtml(itemName)}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #2563eb;">🔔 New Booking Notification (Admin)</h2>
