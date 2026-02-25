@@ -107,7 +107,7 @@ const DriverSurvey = () => {
         description: "Your vehicle has been listed successfully",
       });
 
-      navigate("/vehicle-rental");
+      navigate("/driver-dashboard");
     } catch (error: any) {
       toast({
         title: "Error",

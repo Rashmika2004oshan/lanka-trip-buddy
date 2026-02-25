@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hotel, Calendar, Clock, CheckCircle, Loader2, Plus, Star } from "lucide-react";
+import { Hotel, Calendar, Clock, CheckCircle, Loader2, Plus, Star, User, CreditCard, DollarSign, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -23,13 +23,16 @@ interface HotelBooking {
   service_charge: number;
   total_amount: number;
   booking_status: string;
+  payment_method: string;
   created_at: string;
+  user_id: string;
   hotels: {
     id: string;
     hotel_name: string;
     city: string;
     stars: number;
   };
+  clientName?: string;
 }
 
 const HotelOwnerDashboard = () => {
@@ -41,6 +44,7 @@ const HotelOwnerDashboard = () => {
   const [currentBookings, setCurrentBookings] = useState<HotelBooking[]>([]);
   const [pastBookings, setPastBookings] = useState<HotelBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalEarnings, setTotalEarnings] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !roleLoading) {
@@ -63,7 +67,6 @@ const HotelOwnerDashboard = () => {
     if (!user) return;
     
     try {
-      // Fetch owner's hotels
       const { data: hotelsData } = await supabase
         .from("hotels")
         .select("*")
@@ -74,36 +77,62 @@ const HotelOwnerDashboard = () => {
       if (hotelsData && hotelsData.length > 0) {
         const hotelIds = hotelsData.map(h => h.id);
         
-        // Fetch bookings for owner's hotels
         const { data: bookingsData } = await supabase
           .from("bookings")
           .select(`*, hotels(id, hotel_name, city, stars)`)
           .in("hotel_id", hotelIds)
           .order("created_at", { ascending: false });
 
+        const clientIds = [...new Set((bookingsData || []).map((b: any) => b.user_id))];
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", clientIds);
+
+        const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+
         const today = new Date();
         const current: HotelBooking[] = [];
         const past: HotelBooking[] = [];
+        let earnings = 0;
 
         (bookingsData || []).forEach((booking: any) => {
           if (booking.hotels) {
+            const enriched = {
+              ...booking,
+              clientName: profileMap.get(booking.user_id) || "Guest",
+            };
             const checkoutDate = new Date(booking.check_out_date);
             if (checkoutDate >= today) {
-              current.push(booking);
+              current.push(enriched);
             } else {
-              past.push(booking);
+              past.push(enriched);
             }
+            earnings += Number(booking.subtotal);
           }
         });
 
         setCurrentBookings(current);
         setPastBookings(past);
+        setTotalEarnings(earnings);
       }
     } catch (error) {
       console.error("Error fetching hotel data:", error);
       toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteHotel = async (hotelId: string) => {
+    if (!confirm("Are you sure you want to delete this hotel?")) return;
+    try {
+      const { error } = await supabase.from("hotels").delete().eq("id", hotelId);
+      if (error) throw error;
+      toast.success("Hotel deleted");
+      fetchHotelData();
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
@@ -118,9 +147,57 @@ const HotelOwnerDashboard = () => {
     );
   }
 
-  if (!isHotelOwner) {
-    return null;
-  }
+  if (!isHotelOwner) return null;
+
+  const BookingCard = ({ booking, isPast }: { booking: HotelBooking; isPast?: boolean }) => (
+    <div className={`p-4 border rounded-lg space-y-3 ${isPast ? "opacity-75" : ""}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Hotel className="h-5 w-5 text-primary" />
+          <span className="font-medium">{booking.hotels.hotel_name}</span>
+          <span className="text-sm text-muted-foreground">({booking.hotels.city})</span>
+        </div>
+        <Badge className={isPast ? "" : "bg-green-500"} variant={isPast ? "secondary" : "default"}>
+          {isPast ? "Completed" : booking.booking_status}
+        </Badge>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Client:</span>
+          <span className="font-medium">{booking.clientName}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span>{format(new Date(booking.check_in_date), "MMM dd")} - {format(new Date(booking.check_out_date), "MMM dd, yyyy")}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Guests:</span> {booking.number_of_persons} | <span className="text-muted-foreground">Nights:</span> {booking.number_of_nights}
+        </div>
+        <div>
+          <span className="text-muted-foreground">Room:</span> {booking.room_type}
+        </div>
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Payment:</span>
+          <span className="font-medium">{booking.payment_method}</span>
+        </div>
+      </div>
+      
+      <div className="border-t pt-2 flex justify-between text-sm">
+        <div className="space-y-1">
+          <p><span className="text-muted-foreground">Subtotal:</span> USD {Number(booking.subtotal).toFixed(2)}</p>
+          <p><span className="text-muted-foreground">Service Charge:</span> USD {Number(booking.service_charge).toFixed(2)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold text-primary">USD {Number(booking.total_amount).toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">Total Amount</p>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">Booked on {format(new Date(booking.created_at), "MMM dd, yyyy 'at' hh:mm a")}</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
@@ -133,7 +210,7 @@ const HotelOwnerDashboard = () => {
                 <Hotel className="h-8 w-8 text-primary" />
                 <h1 className="text-4xl font-bold text-foreground">Hotel Owner Dashboard</h1>
               </div>
-              <p className="text-muted-foreground">Manage your hotels and view reservations</p>
+              <p className="text-muted-foreground">Manage your hotels and view client reservations</p>
             </div>
             <Button onClick={() => navigate("/hotel-survey")}>
               <Plus className="h-4 w-4 mr-2" />
@@ -142,8 +219,7 @@ const HotelOwnerDashboard = () => {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -177,20 +253,31 @@ const HotelOwnerDashboard = () => {
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <DollarSign className="h-8 w-8 text-yellow-500" />
+                <div>
+                  <p className="text-2xl font-bold">USD {totalEarnings.toFixed(0)}</p>
+                  <p className="text-sm text-muted-foreground">Total Earnings</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="current" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="current">Current Reservations</TabsTrigger>
-            <TabsTrigger value="past">Past Reservations</TabsTrigger>
-            <TabsTrigger value="hotels">My Hotels</TabsTrigger>
+            <TabsTrigger value="current">Current Reservations ({currentBookings.length})</TabsTrigger>
+            <TabsTrigger value="past">Past Reservations ({pastBookings.length})</TabsTrigger>
+            <TabsTrigger value="hotels">My Hotels ({hotels.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="current">
             <Card>
               <CardHeader>
                 <CardTitle>Current & Upcoming Reservations</CardTitle>
-                <CardDescription>Active hotel bookings from guests</CardDescription>
+                <CardDescription>Active hotel bookings from clients with full details</CardDescription>
               </CardHeader>
               <CardContent>
                 {currentBookings.length === 0 ? (
@@ -198,28 +285,7 @@ const HotelOwnerDashboard = () => {
                 ) : (
                   <div className="space-y-4">
                     {currentBookings.map((booking) => (
-                      <div key={booking.id} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Hotel className="h-5 w-5 text-primary" />
-                            <span className="font-medium">{booking.hotels.hotel_name}</span>
-                            <span className="text-sm text-muted-foreground">({booking.hotels.city})</span>
-                          </div>
-                          <Badge className="bg-green-500">{booking.booking_status}</Badge>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span>{format(new Date(booking.check_in_date), "MMM dd")} - {format(new Date(booking.check_out_date), "MMM dd, yyyy")}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Guests:</span> {booking.number_of_persons} | <span className="text-muted-foreground">Room:</span> {booking.room_type}
-                          </div>
-                        </div>
-                        <p className="text-sm font-medium text-primary mt-2">
-                          Earning: USD {Number(booking.subtotal).toFixed(2)}
-                        </p>
-                      </div>
+                      <BookingCard key={booking.id} booking={booking} />
                     ))}
                   </div>
                 )}
@@ -239,21 +305,7 @@ const HotelOwnerDashboard = () => {
                 ) : (
                   <div className="space-y-4">
                     {pastBookings.map((booking) => (
-                      <div key={booking.id} className="p-4 border rounded-lg opacity-75">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Hotel className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-medium">{booking.hotels.hotel_name}</span>
-                          </div>
-                          <Badge variant="secondary">Completed</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(booking.check_in_date), "MMM dd")} - {format(new Date(booking.check_out_date), "MMM dd, yyyy")}
-                        </p>
-                        <p className="text-sm font-medium text-primary mt-1">
-                          Earned: USD {Number(booking.subtotal).toFixed(2)}
-                        </p>
-                      </div>
+                      <BookingCard key={booking.id} booking={booking} isPast />
                     ))}
                   </div>
                 )}
@@ -291,6 +343,9 @@ const HotelOwnerDashboard = () => {
                         </div>
                         <p className="text-sm text-muted-foreground">{hotel.city} | {hotel.category}</p>
                         <p className="text-sm font-medium text-primary">USD {hotel.per_night_charge}/night</p>
+                        <Button variant="destructive" size="sm" className="mt-2" onClick={() => handleDeleteHotel(hotel.id)}>
+                          <Trash2 className="h-3 w-3 mr-1" /> Remove
+                        </Button>
                       </div>
                     ))}
                   </div>
