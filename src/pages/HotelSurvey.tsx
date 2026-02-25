@@ -111,7 +111,7 @@ const HotelSurvey = () => {
         description: "Your hotel has been listed successfully",
       });
 
-      navigate("/accommodation");
+      navigate("/hotel-owner-dashboard");
     } catch (error: any) {
       toast({
         title: "Error",
