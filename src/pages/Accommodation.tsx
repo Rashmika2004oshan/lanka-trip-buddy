@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import BookingDialog from "@/components/BookingDialog";
-import { Hotel, Star } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Hotel, Star, Plus } from "lucide-react";
 
 interface HotelData {
   id: string;
@@ -18,6 +20,8 @@ interface HotelData {
 }
 
 const Accommodation = () => {
+  const navigate = useNavigate();
+  const { isHotelOwner } = useUserRole();
   const [hotels, setHotels] = useState<HotelData[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
@@ -68,6 +72,12 @@ const Accommodation = () => {
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Find the perfect place to stay during your Sri Lankan journey
             </p>
+            {isHotelOwner && (
+              <Button onClick={() => navigate("/hotel-survey")} className="mt-4 gap-2">
+                <Plus className="h-4 w-4" />
+                List Your Hotel
+              </Button>
+            )}
           </div>
 
           {loading ? (
