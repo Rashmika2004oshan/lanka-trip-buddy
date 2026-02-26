@@ -1,81 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 42 47% 97%;
-    --foreground: 200 25% 15%;
+    --background: 210 20% 98%;
+    --foreground: 220 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 25% 15%;
+    --card-foreground: 220 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 25% 15%;
+    --popover-foreground: 220 25% 12%;
 
-    --primary: 186 65% 42%;
+    --primary: 195 70% 38%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 42 88% 58%;
-    --secondary-foreground: 200 25% 15%;
+    --secondary: 38 72% 56%;
+    --secondary-foreground: 220 25% 12%;
 
-    --muted: 42 30% 92%;
-    --muted-foreground: 200 15% 45%;
+    --muted: 210 15% 93%;
+    --muted-foreground: 220 10% 46%;
 
-    --accent: 142 70% 45%;
+    --accent: 160 50% 42%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 42 25% 88%;
-    --input: 42 25% 88%;
-    --ring: 186 65% 42%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 195 70% 38%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
 
-    --gradient-tropical: linear-gradient(135deg, hsl(186 65% 42%), hsl(142 70% 45%));
-    --gradient-sunset: linear-gradient(135deg, hsl(42 88% 58%), hsl(20 88% 58%));
-    --gradient-hero: linear-gradient(180deg, hsl(186 65% 42% / 0.05), hsl(42 88% 58% / 0.1));
-    
-    --shadow-card: 0 4px 20px hsl(200 25% 15% / 0.08);
-    --shadow-elevated: 0 10px 40px hsl(200 25% 15% / 0.12);
+    --gradient-tropical: linear-gradient(135deg, hsl(195 70% 38%), hsl(160 50% 42%));
+    --gradient-sunset: linear-gradient(135deg, hsl(38 72% 56%), hsl(15 72% 55%));
+    --gradient-hero: linear-gradient(180deg, hsl(195 70% 38% / 0.04), hsl(38 72% 56% / 0.06));
 
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --shadow-card: 0 1px 3px hsl(220 25% 12% / 0.04), 0 4px 12px hsl(220 25% 12% / 0.04);
+    --shadow-elevated: 0 4px 16px hsl(220 25% 12% / 0.08), 0 12px 40px hsl(220 25% 12% / 0.06);
+
+    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
-    --background: 200 25% 8%;
-    --foreground: 42 30% 95%;
+    --background: 220 20% 7%;
+    --foreground: 210 20% 95%;
 
-    --card: 200 25% 12%;
-    --card-foreground: 42 30% 95%;
+    --card: 220 18% 11%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 200 25% 12%;
-    --popover-foreground: 42 30% 95%;
+    --popover: 220 18% 11%;
+    --popover-foreground: 210 20% 95%;
 
-    --primary: 186 65% 48%;
+    --primary: 195 65% 48%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 42 80% 55%;
-    --secondary-foreground: 200 25% 8%;
+    --secondary: 38 65% 52%;
+    --secondary-foreground: 220 20% 7%;
 
-    --muted: 200 20% 18%;
-    --muted-foreground: 42 20% 70%;
+    --muted: 220 15% 16%;
+    --muted-foreground: 210 12% 60%;
 
-    --accent: 142 65% 42%;
+    --accent: 160 45% 40%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 20%;
-    --input: 200 20% 20%;
-    --ring: 186 65% 48%;
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 195 65% 48%;
   }
 }
 
@@ -85,6 +83,18 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    @apply tracking-tight;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Playfair Display', Georgia, serif;
   }
 }
