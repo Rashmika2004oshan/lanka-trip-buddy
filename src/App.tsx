@@ -18,6 +18,7 @@ import DriverDashboard from "./pages/DriverDashboard";
 import HotelOwnerDashboard from "./pages/HotelOwnerDashboard";
 import MapDirections from "./pages/MapDirections";
 import TrainBooking from "./pages/TrainBooking";
+import UserProfile from "./pages/UserProfile";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/profile" element={<UserProfile />} />
           <Route path="/driver-survey" element={<DriverSurvey />} />
           <Route path="/hotel-survey" element={<HotelSurvey />} />
           <Route path="/vehicle-rental" element={<VehicleRental />} />

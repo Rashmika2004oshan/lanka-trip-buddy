@@ -10,7 +10,7 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       <Header />
-      <main className="pt-20">
+      <main>
         <HeroSection />
         <AboutSection />
         <PlacesSection />
@@ -18,10 +18,12 @@ const Index = () => {
         <TrainScheduleSection />
         <Chatbot />
         
-        <footer className="bg-foreground text-background py-8 px-4 text-center">
-          <p className="text-sm">
-            © 2024 Discover Sri Lanka. Experience the Pearl of the Indian Ocean.
-          </p>
+        <footer className="bg-foreground py-10 px-6">
+          <div className="container mx-auto max-w-6xl text-center">
+            <p className="text-background/60 text-sm">
+              © 2024 Sri Lanka Travel. Experience the Pearl of the Indian Ocean.
+            </p>
+          </div>
         </footer>
       </main>
     </div>
