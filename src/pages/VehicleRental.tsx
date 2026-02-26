@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import BookingDialog from "@/components/BookingDialog";
-import { Car } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Car, Plus } from "lucide-react";
 
 interface Vehicle {
   id: string;
@@ -16,6 +18,8 @@ interface Vehicle {
 }
 
 const VehicleRental = () => {
+  const navigate = useNavigate();
+  const { isDriver } = useUserRole();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
@@ -53,6 +57,12 @@ const VehicleRental = () => {
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Choose from our fleet of well-maintained vehicles for your Sri Lankan adventure
             </p>
+            {isDriver && (
+              <Button onClick={() => navigate("/driver-survey")} className="mt-4 gap-2">
+                <Plus className="h-4 w-4" />
+                List Your Vehicle
+              </Button>
+            )}
           </div>
 
           {loading ? (
