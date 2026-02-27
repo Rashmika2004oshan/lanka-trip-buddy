@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Train, ExternalLink } from "lucide-react";
+import { Train } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const TrainScheduleSection = () => {
+  const navigate = useNavigate();
+
   return (
     <section id="train-schedule" className="py-20 px-4 bg-gradient-subtle">
       <div className="container mx-auto max-w-6xl">
@@ -21,20 +24,11 @@ const TrainScheduleSection = () => {
           <Button
             size="lg"
             className="bg-gradient-tropical hover:opacity-90 text-white font-semibold gap-2"
-            asChild
+            onClick={() => navigate("/train-booking")}
           >
-            <a
-              href="https://trainschedule.lk/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View Train Schedules
-              <ExternalLink className="h-5 w-5" />
-            </a>
+            <Train className="w-5 h-5" />
+            View Train Schedules & Book
           </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            Opens TrainSchedule.lk in a new tab
-          </p>
         </div>
       </div>
     </section>

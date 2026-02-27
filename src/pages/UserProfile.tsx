@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import Header from "@/components/Header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Mail, Globe, Calendar, Car, Hotel, MapPin, Plus,
-  Loader2, Pencil, Trash2, Star, CreditCard, Download,
+  Loader2, Pencil, Trash2, Star, Download, Eye, X, ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import jsPDF from "jspdf";
 
 interface Profile {
   full_name: string | null;
@@ -78,6 +79,8 @@ interface SavedItinerary {
   id: string;
   title: string;
   days: number;
+  guests: number | null;
+  interests: any;
   created_at: string;
   itinerary_data: any;
 }
@@ -98,9 +101,9 @@ const UserProfile = () => {
   const [myHotels, setMyHotels] = useState<HotelItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Edit dialogs for vehicles/hotels
   const [editVehicle, setEditVehicle] = useState<VehicleItem | null>(null);
   const [editHotel, setEditHotel] = useState<HotelItem | null>(null);
+  const [viewItinerary, setViewItinerary] = useState<SavedItinerary | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -219,6 +222,47 @@ const UserProfile = () => {
     setEditHotel(null);
   };
 
+  const downloadItineraryPdf = (it: SavedItinerary) => {
+    const doc = new jsPDF();
+    const data = it.itinerary_data;
+    let y = 20;
+
+    doc.setFontSize(18);
+    doc.text(it.title, 20, y); y += 10;
+    doc.setFontSize(10);
+    doc.text(`${it.days} Days · ${it.guests || 1} Guest(s) · Created: ${format(new Date(it.created_at), "MMM dd, yyyy")}`, 20, y); y += 8;
+    if (it.interests) {
+      const interests = Array.isArray(it.interests) ? it.interests.join(", ") : String(it.interests);
+      doc.text(`Interests: ${interests}`, 20, y); y += 8;
+    }
+    doc.text(`Traveller: ${profile.full_name || user?.email || "N/A"}`, 20, y); y += 12;
+
+    doc.setFontSize(12);
+    doc.text("Daily Itinerary", 20, y); y += 8;
+
+    if (data?.days && Array.isArray(data.days)) {
+      data.days.forEach((day: any, i: number) => {
+        if (y > 260) { doc.addPage(); y = 20; }
+        doc.setFontSize(11);
+        doc.text(`Day ${i + 1}: ${day.destination || ""}`, 20, y); y += 6;
+        doc.setFontSize(9);
+        if (day.description) { doc.text(day.description.substring(0, 90), 24, y); y += 5; }
+        if (day.hotel) { doc.text(`Hotel: ${day.hotel}`, 24, y); y += 5; }
+        if (day.hotelCost) { doc.text(`Accommodation: USD ${Number(day.hotelCost).toFixed(2)}`, 24, y); y += 5; }
+        y += 4;
+      });
+    }
+
+    if (data?.totalCost) {
+      if (y > 260) { doc.addPage(); y = 20; }
+      y += 4;
+      doc.setFontSize(12);
+      doc.text(`Total Estimated Cost: USD ${Number(data.totalCost).toFixed(2)}`, 20, y);
+    }
+
+    doc.save(`${it.title.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`);
+  };
+
   const getRoleBadge = () => {
     if (isDriver) return <Badge className="bg-primary/10 text-primary border-primary/20">Driver</Badge>;
     if (isHotelOwner) return <Badge className="bg-secondary/10 text-secondary border-secondary/20">Hotel Owner</Badge>;
@@ -236,6 +280,7 @@ const UserProfile = () => {
     );
   }
 
+  const isTraveller = !isDriver && !isHotelOwner;
   const defaultTab = isDriver ? "vehicles" : isHotelOwner ? "hotels" : "bookings";
 
   return (
@@ -277,14 +322,14 @@ const UserProfile = () => {
 
           {/* Tabs */}
           <Tabs defaultValue={defaultTab}>
-            <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 mb-6">
-              {!isDriver && !isHotelOwner && (
+            <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 mb-6 flex-wrap">
+              {isTraveller && (
                 <>
                   <TabsTrigger value="bookings" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3">
-                    Bookings
+                    My Bookings
                   </TabsTrigger>
                   <TabsTrigger value="itineraries" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3">
-                    Itineraries
+                    Saved Itineraries
                   </TabsTrigger>
                 </>
               )}
@@ -310,7 +355,7 @@ const UserProfile = () => {
               )}
             </TabsList>
 
-            {/* Traveller Bookings */}
+            {/* === TRAVELLER: Bookings === */}
             <TabsContent value="bookings">
               {bookings.length === 0 ? (
                 <EmptyState icon={Calendar} title="No bookings yet" description="Your travel bookings will appear here" />
@@ -323,7 +368,7 @@ const UserProfile = () => {
                           <div className="flex items-center gap-2">
                             {b.booking_type === "vehicle" ? <Car className="h-4 w-4 text-primary" /> : <Hotel className="h-4 w-4 text-primary" />}
                             <span className="font-semibold text-sm">
-                              {b.booking_type === "vehicle" ? `${b.vehicles?.model}` : b.hotels?.hotel_name}
+                              {b.booking_type === "vehicle" ? b.vehicles?.model : b.hotels?.hotel_name}
                             </span>
                           </div>
                           <Badge variant={b.booking_status === "confirmed" ? "default" : "secondary"} className="text-xs">
@@ -349,20 +394,32 @@ const UserProfile = () => {
               )}
             </TabsContent>
 
-            {/* Traveller Itineraries */}
+            {/* === TRAVELLER: Itineraries === */}
             <TabsContent value="itineraries">
               {itineraries.length === 0 ? (
                 <EmptyState icon={MapPin} title="No saved itineraries" description="Plan a trip and save it to see it here" />
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {itineraries.map(it => (
-                    <Card key={it.id} className="border-border/50 hover:shadow-card transition-shadow">
+                    <Card key={it.id} className="border-border/50 hover:shadow-card transition-shadow cursor-pointer group" onClick={() => setViewItinerary(it)}>
                       <CardContent className="p-5">
-                        <h3 className="font-semibold text-foreground mb-1">{it.title}</h3>
-                        <p className="text-xs text-muted-foreground">{it.days} days · {format(new Date(it.created_at), "MMM dd, yyyy")}</p>
+                        <div className="flex items-start justify-between">
+                          <h3 className="font-semibold text-foreground mb-1">{it.title}</h3>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">{it.days} days · {it.guests || 1} guest(s)</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(it.created_at), "MMM dd, yyyy")}</p>
                         {it.itinerary_data?.totalCost && (
                           <p className="mt-2 text-sm font-bold text-primary">USD {Number(it.itinerary_data.totalCost).toFixed(2)}</p>
                         )}
+                        <div className="flex gap-2 mt-3">
+                          <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={(e) => { e.stopPropagation(); setViewItinerary(it); }}>
+                            <Eye className="h-3 w-3" /> View
+                          </Button>
+                          <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={(e) => { e.stopPropagation(); downloadItineraryPdf(it); }}>
+                            <Download className="h-3 w-3" /> PDF
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -370,7 +427,7 @@ const UserProfile = () => {
               )}
             </TabsContent>
 
-            {/* Driver Vehicles */}
+            {/* === DRIVER: Vehicles === */}
             <TabsContent value="vehicles">
               <div className="flex justify-end mb-4">
                 <Button onClick={() => navigate("/driver-survey")} className="gap-2">
@@ -421,7 +478,7 @@ const UserProfile = () => {
               )}
             </TabsContent>
 
-            {/* Hotel Owner Hotels */}
+            {/* === HOTEL OWNER: Hotels === */}
             <TabsContent value="hotels">
               <div className="flex justify-end mb-4">
                 <Button onClick={() => navigate("/hotel-survey")} className="gap-2">
@@ -613,6 +670,72 @@ const UserProfile = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Itinerary Detail Dialog */}
+      <Dialog open={!!viewItinerary} onOpenChange={() => setViewItinerary(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{viewItinerary?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+          {viewItinerary && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                <span>{viewItinerary.days} Days</span>
+                <span>·</span>
+                <span>{viewItinerary.guests || 1} Guest(s)</span>
+                <span>·</span>
+                <span>{format(new Date(viewItinerary.created_at), "MMM dd, yyyy")}</span>
+              </div>
+              {viewItinerary.interests && (
+                <div className="flex flex-wrap gap-1.5">
+                  {(Array.isArray(viewItinerary.interests) ? viewItinerary.interests : []).map((int: string, i: number) => (
+                    <Badge key={i} variant="outline" className="text-xs">{int}</Badge>
+                  ))}
+                </div>
+              )}
+
+              {viewItinerary.itinerary_data?.days && Array.isArray(viewItinerary.itinerary_data.days) && (
+                <div className="space-y-3">
+                  {viewItinerary.itinerary_data.days.map((day: any, i: number) => (
+                    <Card key={i} className="border-border/50">
+                      <CardContent className="p-4">
+                        <h4 className="font-semibold text-sm text-foreground">Day {i + 1}: {day.destination || day.city || ""}</h4>
+                        {day.description && <p className="text-xs text-muted-foreground mt-1">{day.description}</p>}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                          {day.hotel && <span>🏨 {day.hotel}</span>}
+                          {day.hotelCost && <span>USD {Number(day.hotelCost).toFixed(2)}/night</span>}
+                          {day.city && <span>📍 {day.city}</span>}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {viewItinerary.itinerary_data?.vehicle && (
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Vehicle: </span>
+                  {viewItinerary.itinerary_data.vehicle}
+                </div>
+              )}
+
+              {viewItinerary.itinerary_data?.totalCost && (
+                <div className="pt-3 border-t border-border/50">
+                  <p className="text-lg font-bold text-primary">Total: USD {Number(viewItinerary.itinerary_data.totalCost).toFixed(2)}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewItinerary(null)}>Close</Button>
+            <Button onClick={() => viewItinerary && downloadItineraryPdf(viewItinerary)} className="gap-1.5">
+              <Download className="h-4 w-4" /> Download PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -678,6 +801,14 @@ const OwnerBookings = ({ type, userId }: { type: "vehicle" | "hotel"; userId?: s
                 </p>
               </div>
               <Badge variant={b.booking_status === "confirmed" ? "default" : "secondary"} className="text-xs">{b.booking_status}</Badge>
+            </div>
+            <div className="text-xs text-muted-foreground space-y-0.5">
+              {type === "vehicle" && b.rental_start_date && (
+                <p>{format(new Date(b.rental_start_date), "MMM dd")} → {format(new Date(b.rental_end_date), "MMM dd, yyyy")} · {b.estimated_km}km</p>
+              )}
+              {type === "hotel" && b.check_in_date && (
+                <p>{format(new Date(b.check_in_date), "MMM dd")} → {format(new Date(b.check_out_date), "MMM dd, yyyy")} · {b.number_of_nights} night(s) · {b.number_of_persons} guest(s)</p>
+              )}
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-border/50 mt-2">
               <span className="text-xs text-muted-foreground">{format(new Date(b.created_at), "MMM dd, yyyy")}</span>
