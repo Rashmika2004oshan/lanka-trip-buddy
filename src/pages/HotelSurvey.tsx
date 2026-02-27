@@ -106,12 +106,29 @@ const HotelSurvey = () => {
 
       if (insertError) throw insertError;
 
+      // Auto-assign hotel_owner role if not already assigned
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("role", "hotel_owner")
+        .maybeSingle();
+
+      if (!existingRole) {
+        await supabase.from("user_roles").insert({ user_id: user.id, role: "hotel_owner" as any });
+        await supabase.from("role_requests").upsert({
+          user_id: user.id,
+          requested_role: "hotel_owner" as any,
+          status: "approved",
+        }, { onConflict: "user_id,requested_role" }).select();
+      }
+
       toast({
         title: "Success!",
         description: "Your hotel has been listed successfully",
       });
 
-      navigate("/hotel-owner-dashboard");
+      navigate("/profile");
     } catch (error: any) {
       toast({
         title: "Error",

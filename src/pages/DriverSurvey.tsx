@@ -102,12 +102,30 @@ const DriverSurvey = () => {
 
       if (insertError) throw insertError;
 
+      // Auto-assign driver role if not already assigned
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("role", "driver")
+        .maybeSingle();
+
+      if (!existingRole) {
+        await supabase.from("user_roles").insert({ user_id: user.id, role: "driver" as any });
+        // Also create an approved role request for records
+        await supabase.from("role_requests").upsert({
+          user_id: user.id,
+          requested_role: "driver" as any,
+          status: "approved",
+        }, { onConflict: "user_id,requested_role" }).select();
+      }
+
       toast({
         title: "Success!",
         description: "Your vehicle has been listed successfully",
       });
 
-      navigate("/driver-dashboard");
+      navigate("/profile");
     } catch (error: any) {
       toast({
         title: "Error",
