@@ -43,6 +43,7 @@ const Auth = () => {
           options: {
             data: {
               full_name: formData.fullName,
+              selected_role: selectedRole,
             },
             emailRedirectTo: `${window.location.origin}/`,
           },
@@ -50,30 +51,31 @@ const Auth = () => {
 
         if (error) throw error;
 
-        // If user was created and role is driver or hotel_owner, create a role request
+        // Auto-assign role immediately for driver/hotel_owner
         if (signUpData.user && selectedRole !== "traveller") {
-          const { error: roleError } = await supabase
-            .from("role_requests")
-            .insert({
-              user_id: signUpData.user.id,
-              requested_role: selectedRole,
-              status: "pending",
-            });
+          // Insert role directly
+          await supabase.from("user_roles").insert({
+            user_id: signUpData.user.id,
+            role: selectedRole as any,
+          });
 
-          if (roleError) {
-            console.error("Role request error:", roleError);
-          }
+          // Create approved role request for records
+          await supabase.from("role_requests").upsert({
+            user_id: signUpData.user.id,
+            requested_role: selectedRole as any,
+            status: "approved",
+          }, { onConflict: "user_id,requested_role" });
         }
 
         toast.success("Account created! Please check your email to verify.");
 
         if (selectedRole === "driver") {
-          toast.info("Your driver role request has been submitted for admin approval.");
+          navigate("/driver-survey");
         } else if (selectedRole === "hotel_owner") {
-          toast.info("Your hotel owner role request has been submitted for admin approval.");
+          navigate("/hotel-survey");
+        } else {
+          navigate("/");
         }
-
-        navigate("/");
       }
     } catch (error: any) {
       toast.error(error.message || "An error occurred");
@@ -84,7 +86,7 @@ const Auth = () => {
 
   const roleOptions = [
     { value: "traveller" as UserType, label: "Traveller", icon: Plane, desc: "Plan trips & book services" },
-    { value: "driver" as UserType, label: "Driver", icon: Car, desc: "List vehicles for rental" },
+    { value: "driver" as UserType, label: "Vehicle Owner", icon: Car, desc: "List vehicles for rental" },
     { value: "hotel_owner" as UserType, label: "Hotel Owner", icon: Hotel, desc: "List hotels for booking" },
   ];
 
@@ -209,7 +211,7 @@ const Auth = () => {
 
             {!isLogin && selectedRole !== "traveller" && (
               <p className="text-xs text-muted-foreground text-center">
-                Your {selectedRole === "driver" ? "driver" : "hotel owner"} role will be activated after admin approval.
+                After signup, you'll be redirected to list your {selectedRole === "driver" ? "vehicle" : "hotel"}.
               </p>
             )}
 
