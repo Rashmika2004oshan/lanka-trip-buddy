@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Mail, Globe, Calendar, Car, Hotel, MapPin, Plus,
-  Loader2, Pencil, Trash2, Star, Download, Eye, X, ChevronRight,
+  Loader2, Pencil, Trash2, Star, Download, Eye, ChevronRight, Clock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ interface Profile {
   bio: string | null;
   country: string | null;
   avatar_url: string | null;
+  created_at?: string;
 }
 
 interface Booking {
@@ -87,7 +88,7 @@ interface SavedItinerary {
 
 const UserProfile = () => {
   const { user, loading: authLoading } = useAuth();
-  const { isDriver, isHotelOwner, roles, loading: rolesLoading } = useUserRole();
+  const { isDriver, isHotelOwner, isAdmin, roles, loading: rolesLoading } = useUserRole();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<Profile>({ full_name: null, bio: null, country: null, avatar_url: null });
@@ -110,42 +111,57 @@ const UserProfile = () => {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (user) fetchAllData();
-  }, [user, isDriver, isHotelOwner]);
+    if (user && !rolesLoading) fetchAllData();
+  }, [user, rolesLoading, isDriver, isHotelOwner]);
 
   const fetchAllData = async () => {
     if (!user) return;
     setLoading(true);
     try {
+      const isTraveller = !isDriver && !isHotelOwner;
+
       const promises: any[] = [
         supabase.from("profiles").select("*").eq("id", user.id).single().then(r => r),
-        supabase.from("bookings").select("*, vehicles(vehicle_type, model, vehicle_number), hotels(hotel_name, city, stars)").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
-        supabase.from("saved_itineraries").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
       ];
 
-      if (isDriver) {
-        promises.push(supabase.from("vehicles").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r));
+      // Travellers: fetch their own bookings + itineraries
+      if (isTraveller) {
+        promises.push(
+          supabase.from("bookings").select("*, vehicles(vehicle_type, model, vehicle_number), hotels(hotel_name, city, stars)").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
+          supabase.from("saved_itineraries").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
+        );
       }
+
+      // Drivers: fetch their vehicles (client bookings fetched in sub-component)
+      if (isDriver) {
+        promises.push(
+          supabase.from("vehicles").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
+        );
+      }
+
+      // Hotel owners: fetch their hotels (reservations fetched in sub-component)
       if (isHotelOwner) {
-        promises.push(supabase.from("hotels").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r));
+        promises.push(
+          supabase.from("hotels").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
+        );
       }
 
       const results = await Promise.all(promises);
-      
+
       if (results[0].data) {
         setProfile(results[0].data);
         setProfileForm(results[0].data);
       }
-      setBookings(results[1].data || []);
-      setItineraries(results[2].data || []);
 
-      let idx = 3;
-      if (isDriver && results[idx]) {
-        setMyVehicles(results[idx].data || []);
-        idx++;
+      if (isTraveller) {
+        setBookings(results[1]?.data || []);
+        setItineraries(results[2]?.data || []);
       }
-      if (isHotelOwner && results[idx]) {
-        setMyHotels(results[idx].data || []);
+      if (isDriver) {
+        setMyVehicles(results[1]?.data || []);
+      }
+      if (isHotelOwner) {
+        setMyHotels(results[1]?.data || []);
       }
     } catch (err) {
       console.error("Error loading profile data:", err);
@@ -164,7 +180,7 @@ const UserProfile = () => {
         country: profileForm.country,
       }).eq("id", user.id);
       if (error) throw error;
-      setProfile(profileForm);
+      setProfile(prev => ({ ...prev, ...profileForm }));
       setEditingProfile(false);
       toast.success("Profile updated");
     } catch (err: any) {
@@ -226,7 +242,6 @@ const UserProfile = () => {
     const doc = new jsPDF();
     const data = it.itinerary_data;
     let y = 20;
-
     doc.setFontSize(18);
     doc.text(it.title, 20, y); y += 10;
     doc.setFontSize(10);
@@ -236,10 +251,8 @@ const UserProfile = () => {
       doc.text(`Interests: ${interests}`, 20, y); y += 8;
     }
     doc.text(`Traveller: ${profile.full_name || user?.email || "N/A"}`, 20, y); y += 12;
-
     doc.setFontSize(12);
     doc.text("Daily Itinerary", 20, y); y += 8;
-
     if (data?.days && Array.isArray(data.days)) {
       data.days.forEach((day: any, i: number) => {
         if (y > 260) { doc.addPage(); y = 20; }
@@ -252,21 +265,27 @@ const UserProfile = () => {
         y += 4;
       });
     }
-
     if (data?.totalCost) {
       if (y > 260) { doc.addPage(); y = 20; }
       y += 4;
       doc.setFontSize(12);
       doc.text(`Total Estimated Cost: USD ${Number(data.totalCost).toFixed(2)}`, 20, y);
     }
-
     doc.save(`${it.title.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`);
   };
 
-  const getRoleBadge = () => {
-    if (isDriver) return <Badge className="bg-primary/10 text-primary border-primary/20">Driver</Badge>;
-    if (isHotelOwner) return <Badge className="bg-secondary/10 text-secondary border-secondary/20">Hotel Owner</Badge>;
-    return <Badge variant="outline">Traveller</Badge>;
+  const getRoleLabel = () => {
+    if (isAdmin) return "Admin";
+    if (isDriver) return "Vehicle Owner";
+    if (isHotelOwner) return "Hotel Owner";
+    return "Traveller";
+  };
+
+  const getRoleBadgeStyle = () => {
+    if (isAdmin) return "bg-destructive/10 text-destructive border-destructive/20";
+    if (isDriver) return "bg-primary/10 text-primary border-primary/20";
+    if (isHotelOwner) return "bg-secondary/10 text-secondary border-secondary/20";
+    return "bg-muted text-muted-foreground border-border";
   };
 
   if (authLoading || rolesLoading || loading) {
@@ -288,41 +307,84 @@ const UserProfile = () => {
       <Header />
       <main className="pt-24 pb-16 px-4">
         <div className="container mx-auto max-w-5xl">
-          {/* Profile Header */}
-          <div className="relative mb-8">
-            <div className="h-32 rounded-2xl bg-gradient-tropical" />
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 -mt-12 px-6">
-              <div className="w-24 h-24 rounded-2xl bg-card border-4 border-background flex items-center justify-center shadow-elevated overflow-hidden">
-                {profile.avatar_url ? (
-                  <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="h-10 w-10 text-muted-foreground" />
-                )}
-              </div>
-              <div className="flex-1 pb-1">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl font-bold text-foreground">
-                    {profile.full_name || user?.email?.split("@")[0] || "User"}
-                  </h1>
-                  {getRoleBadge()}
-                </div>
-                <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-1">
-                  <Mail className="h-3.5 w-3.5" /> {user?.email}
-                  {profile.country && <><Globe className="h-3.5 w-3.5 ml-3" /> {profile.country}</>}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setEditingProfile(true)} className="gap-1.5">
-                <Pencil className="h-3.5 w-3.5" /> Edit Profile
-              </Button>
-            </div>
-            {profile.bio && (
-              <p className="mt-4 px-6 text-sm text-muted-foreground max-w-2xl">{profile.bio}</p>
-            )}
-          </div>
 
-          {/* Tabs */}
+          {/* ===== PROFILE CARD ===== */}
+          <Card className="mb-8 overflow-hidden border-border/50">
+            <div className="h-28 bg-gradient-tropical" />
+            <CardContent className="relative px-6 pb-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 -mt-12">
+                <div className="w-24 h-24 rounded-2xl bg-card border-4 border-background flex items-center justify-center shadow-elevated overflow-hidden shrink-0">
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="h-10 w-10 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h1 className="text-2xl font-bold text-foreground truncate">
+                      {profile.full_name || user?.email?.split("@")[0] || "User"}
+                    </h1>
+                    <Badge className={getRoleBadgeStyle()}>{getRoleLabel()}</Badge>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setEditingProfile(true)} className="gap-1.5 shrink-0">
+                  <Pencil className="h-3.5 w-3.5" /> Edit Profile
+                </Button>
+              </div>
+
+              {/* Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Mail className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Globe className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Country</p>
+                    <p className="text-sm font-medium text-foreground">{profile.country || "Not set"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Role</p>
+                    <p className="text-sm font-medium text-foreground">{getRoleLabel()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Clock className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Member Since</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {profile.created_at ? format(new Date(profile.created_at), "MMM dd, yyyy") : "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {profile.bio && (
+                <p className="mt-4 text-sm text-muted-foreground">{profile.bio}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ===== TABS ===== */}
           <Tabs defaultValue={defaultTab}>
             <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 mb-6 flex-wrap">
+              {/* Traveller tabs */}
               {isTraveller && (
                 <>
                   <TabsTrigger value="bookings" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3">
@@ -333,6 +395,7 @@ const UserProfile = () => {
                   </TabsTrigger>
                 </>
               )}
+              {/* Driver tabs */}
               {isDriver && (
                 <>
                   <TabsTrigger value="vehicles" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3">
@@ -343,6 +406,7 @@ const UserProfile = () => {
                   </TabsTrigger>
                 </>
               )}
+              {/* Hotel Owner tabs */}
               {isHotelOwner && (
                 <>
                   <TabsTrigger value="hotels" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3">
@@ -429,9 +493,10 @@ const UserProfile = () => {
 
             {/* === DRIVER: Vehicles === */}
             <TabsContent value="vehicles">
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Listed Vehicles</h2>
                 <Button onClick={() => navigate("/driver-survey")} className="gap-2">
-                  <Plus className="h-4 w-4" /> Add Vehicle
+                  <Plus className="h-4 w-4" /> List Your Vehicle
                 </Button>
               </div>
               {myVehicles.length === 0 ? (
@@ -480,9 +545,10 @@ const UserProfile = () => {
 
             {/* === HOTEL OWNER: Hotels === */}
             <TabsContent value="hotels">
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Listed Hotels</h2>
                 <Button onClick={() => navigate("/hotel-survey")} className="gap-2">
-                  <Plus className="h-4 w-4" /> Add Hotel
+                  <Plus className="h-4 w-4" /> List Your Hotel
                 </Button>
               </div>
               {myHotels.length === 0 ? (
@@ -675,9 +741,7 @@ const UserProfile = () => {
       <Dialog open={!!viewItinerary} onOpenChange={() => setViewItinerary(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>{viewItinerary?.title}</span>
-            </DialogTitle>
+            <DialogTitle>{viewItinerary?.title}</DialogTitle>
           </DialogHeader>
           {viewItinerary && (
             <div className="space-y-4">
@@ -695,7 +759,6 @@ const UserProfile = () => {
                   ))}
                 </div>
               )}
-
               {viewItinerary.itinerary_data?.days && Array.isArray(viewItinerary.itinerary_data.days) && (
                 <div className="space-y-3">
                   {viewItinerary.itinerary_data.days.map((day: any, i: number) => (
@@ -713,14 +776,12 @@ const UserProfile = () => {
                   ))}
                 </div>
               )}
-
               {viewItinerary.itinerary_data?.vehicle && (
                 <div className="text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">Vehicle: </span>
                   {viewItinerary.itinerary_data.vehicle}
                 </div>
               )}
-
               {viewItinerary.itinerary_data?.totalCost && (
                 <div className="pt-3 border-t border-border/50">
                   <p className="text-lg font-bold text-primary">Total: USD {Number(viewItinerary.itinerary_data.totalCost).toFixed(2)}</p>
@@ -758,61 +819,79 @@ const OwnerBookings = ({ type, userId }: { type: "vehicle" | "hotel"; userId?: s
 
   useEffect(() => {
     if (!userId) return;
-    const fetch = async () => {
+    const fetchBookings = async () => {
       try {
         if (type === "vehicle") {
           const { data: vehicles } = await supabase.from("vehicles").select("id").eq("user_id", userId);
           if (vehicles && vehicles.length > 0) {
-            const ids = vehicles.map(v => v.id);
-            const { data } = await supabase.from("bookings").select("*, profiles(full_name), vehicles(model, vehicle_number)").in("vehicle_id", ids).order("created_at", { ascending: false });
+            const vehicleIds = vehicles.map(v => v.id);
+            const { data } = await supabase
+              .from("bookings")
+              .select("*, vehicles(vehicle_type, model, vehicle_number)")
+              .in("vehicle_id", vehicleIds)
+              .order("created_at", { ascending: false });
             setBookings(data || []);
           }
         } else {
           const { data: hotels } = await supabase.from("hotels").select("id").eq("user_id", userId);
           if (hotels && hotels.length > 0) {
-            const ids = hotels.map(h => h.id);
-            const { data } = await supabase.from("bookings").select("*, profiles(full_name), hotels(hotel_name, city)").in("hotel_id", ids).order("created_at", { ascending: false });
+            const hotelIds = hotels.map(h => h.id);
+            const { data } = await supabase
+              .from("bookings")
+              .select("*, hotels(hotel_name, city, stars)")
+              .in("hotel_id", hotelIds)
+              .order("created_at", { ascending: false });
             setBookings(data || []);
           }
         }
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching owner bookings:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetch();
+    fetchBookings();
   }, [userId, type]);
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  if (bookings.length === 0) return <EmptyState icon={Calendar} title="No client bookings yet" description="When clients book your properties, they'll appear here" />;
+  if (bookings.length === 0) {
+    return <EmptyState icon={Calendar} title={type === "vehicle" ? "No client bookings yet" : "No reservations yet"} description="Bookings from clients will appear here" />;
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {bookings.map((b: any) => (
+      {bookings.map(b => (
         <Card key={b.id} className="border-border/50">
           <CardContent className="p-5">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="font-semibold text-sm">{b.profiles?.full_name || "Guest"}</p>
-                <p className="text-xs text-muted-foreground">
-                  {type === "vehicle" ? `${b.vehicles?.model} · ${b.vehicles?.vehicle_number}` : `${b.hotels?.hotel_name} · ${b.hotels?.city}`}
-                </p>
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                {type === "vehicle" ? <Car className="h-4 w-4 text-primary" /> : <Hotel className="h-4 w-4 text-primary" />}
+                <span className="font-semibold text-sm">
+                  {type === "vehicle" ? b.vehicles?.model : b.hotels?.hotel_name}
+                </span>
               </div>
-              <Badge variant={b.booking_status === "confirmed" ? "default" : "secondary"} className="text-xs">{b.booking_status}</Badge>
+              <Badge variant={b.booking_status === "confirmed" ? "default" : "secondary"} className="text-xs">
+                {b.booking_status}
+              </Badge>
             </div>
-            <div className="text-xs text-muted-foreground space-y-0.5">
+            <div className="space-y-1 text-xs text-muted-foreground">
               {type === "vehicle" && b.rental_start_date && (
                 <p>{format(new Date(b.rental_start_date), "MMM dd")} → {format(new Date(b.rental_end_date), "MMM dd, yyyy")} · {b.estimated_km}km</p>
               )}
               {type === "hotel" && b.check_in_date && (
-                <p>{format(new Date(b.check_in_date), "MMM dd")} → {format(new Date(b.check_out_date), "MMM dd, yyyy")} · {b.number_of_nights} night(s) · {b.number_of_persons} guest(s)</p>
+                <p>{format(new Date(b.check_in_date), "MMM dd")} → {format(new Date(b.check_out_date), "MMM dd, yyyy")} · {b.number_of_nights} night(s)</p>
               )}
             </div>
-            <div className="flex justify-between items-center pt-2 border-t border-border/50 mt-2">
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-border/50">
               <span className="text-xs text-muted-foreground">{format(new Date(b.created_at), "MMM dd, yyyy")}</span>
-              <span className="font-bold text-primary text-sm">USD {Number(b.total_amount).toFixed(2)}</span>
+              <span className="font-bold text-primary">USD {Number(b.total_amount).toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
