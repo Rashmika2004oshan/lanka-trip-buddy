@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import Header from "@/components/Header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Mail, Globe, Calendar, Car, Hotel, MapPin, Plus,
   Loader2, Pencil, Trash2, Star, Download, Eye, ChevronRight, Clock,
+  Users, TrendingUp, DollarSign, UserPlus, ShieldCheck, BarChart3,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, parseISO, isWithinInterval } from "date-fns";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -27,6 +28,10 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import jsPDF from "jspdf";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell,
+} from "recharts";
 
 interface Profile {
   full_name: string | null;
@@ -86,6 +91,8 @@ interface SavedItinerary {
   itinerary_data: any;
 }
 
+const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
 const UserProfile = () => {
   const { user, loading: authLoading } = useAuth();
   const { isDriver, isHotelOwner, isAdmin, roles, loading: rolesLoading } = useUserRole();
@@ -106,25 +113,32 @@ const UserProfile = () => {
   const [editHotel, setEditHotel] = useState<HotelItem | null>(null);
   const [viewItinerary, setViewItinerary] = useState<SavedItinerary | null>(null);
 
+  // Admin analytics state
+  const [adminStats, setAdminStats] = useState({
+    totalUsers: 0, totalBookings: 0, totalVehicles: 0, totalHotels: 0,
+    totalRevenue: 0, todayBookings: 0, newUsersThisWeek: 0, pendingRequests: 0,
+  });
+  const [allBookings, setAllBookings] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
     if (user && !rolesLoading) fetchAllData();
-  }, [user, rolesLoading, isDriver, isHotelOwner]);
+  }, [user, rolesLoading, isDriver, isHotelOwner, isAdmin]);
 
   const fetchAllData = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const isTraveller = !isDriver && !isHotelOwner;
+      const isTraveller = !isDriver && !isHotelOwner && !isAdmin;
 
       const promises: any[] = [
         supabase.from("profiles").select("*").eq("id", user.id).single().then(r => r),
       ];
 
-      // Travellers: fetch their own bookings + itineraries
       if (isTraveller) {
         promises.push(
           supabase.from("bookings").select("*, vehicles(vehicle_type, model, vehicle_number), hotels(hotel_name, city, stars)").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
@@ -132,17 +146,27 @@ const UserProfile = () => {
         );
       }
 
-      // Drivers: fetch their vehicles (client bookings fetched in sub-component)
       if (isDriver) {
         promises.push(
           supabase.from("vehicles").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
         );
       }
 
-      // Hotel owners: fetch their hotels (reservations fetched in sub-component)
       if (isHotelOwner) {
         promises.push(
           supabase.from("hotels").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(r => r),
+        );
+      }
+
+      // Admin: fetch all analytics data
+      if (isAdmin) {
+        promises.push(
+          supabase.from("profiles").select("*").then(r => r),
+          supabase.from("bookings").select("*, vehicles(*), hotels(*)").order("created_at", { ascending: false }).then(r => r),
+          supabase.from("vehicles").select("*").then(r => r),
+          supabase.from("hotels").select("*").then(r => r),
+          supabase.from("role_requests").select("*").then(r => r),
+          supabase.from("user_roles").select("*").then(r => r),
         );
       }
 
@@ -163,12 +187,88 @@ const UserProfile = () => {
       if (isHotelOwner) {
         setMyHotels(results[1]?.data || []);
       }
+
+      // Admin analytics processing
+      if (isAdmin) {
+        const allProfiles = results[1]?.data || [];
+        const bookingsData = results[2]?.data || [];
+        const vehiclesData = results[3]?.data || [];
+        const hotelsData = results[4]?.data || [];
+        const requestsData = results[5]?.data || [];
+        const rolesData = results[6]?.data || [];
+
+        const today = new Date();
+        const todayStart = startOfDay(today);
+        const todayEnd = endOfDay(today);
+        const weekAgo = subDays(today, 7);
+
+        const todayBookings = bookingsData.filter((b: any) => {
+          const d = parseISO(b.created_at);
+          return isWithinInterval(d, { start: todayStart, end: todayEnd });
+        });
+        const newUsersThisWeek = allProfiles.filter((p: any) => parseISO(p.created_at) >= weekAgo);
+        const totalRevenue = bookingsData.reduce((s: number, b: any) => s + Number(b.total_amount || 0), 0);
+
+        setAllBookings(bookingsData);
+        setAllUsers(allProfiles.map((p: any) => ({
+          ...p,
+          roles: rolesData.filter((r: any) => r.user_id === p.id).map((r: any) => r.role),
+        })));
+
+        setAdminStats({
+          totalUsers: allProfiles.length,
+          totalBookings: bookingsData.length,
+          totalVehicles: vehiclesData.length,
+          totalHotels: hotelsData.length,
+          totalRevenue,
+          todayBookings: todayBookings.length,
+          newUsersThisWeek: newUsersThisWeek.length,
+          pendingRequests: requestsData.filter((r: any) => r.status === 'pending').length,
+        });
+      }
     } catch (err) {
       console.error("Error loading profile data:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  // Admin chart data
+  const bookingsByDay = useMemo(() => {
+    const last7 = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), 'MMM dd'));
+    return last7.map(day => ({
+      day,
+      bookings: allBookings.filter(b => format(parseISO(b.created_at), 'MMM dd') === day).length,
+      revenue: allBookings.filter(b => format(parseISO(b.created_at), 'MMM dd') === day).reduce((s, b) => s + Number(b.total_amount || 0), 0),
+    }));
+  }, [allBookings]);
+
+  const revenueByType = useMemo(() => [
+    { name: 'Vehicle Rentals', value: allBookings.filter(b => b.booking_type === 'vehicle').reduce((s, b) => s + Number(b.total_amount || 0), 0) },
+    { name: 'Accommodations', value: allBookings.filter(b => b.booking_type === 'accommodation').reduce((s, b) => s + Number(b.total_amount || 0), 0) },
+  ], [allBookings]);
+
+  const usersByRole = useMemo(() => {
+    const counts: Record<string, number> = { user: 0, driver: 0, hotel_owner: 0, admin: 0 };
+    allUsers.forEach((u: any) => {
+      if (!u.roles || u.roles.length === 0) counts.user++;
+      else u.roles.forEach((r: string) => { counts[r] = (counts[r] || 0) + 1; });
+    });
+    return [
+      { name: 'Travellers', value: counts.user, fill: CHART_COLORS[0] },
+      { name: 'Drivers', value: counts.driver, fill: CHART_COLORS[1] },
+      { name: 'Hotel Owners', value: counts.hotel_owner, fill: CHART_COLORS[2] },
+      { name: 'Admins', value: counts.admin, fill: CHART_COLORS[3] },
+    ];
+  }, [allUsers]);
+
+  const registrationsByDay = useMemo(() => {
+    const last7 = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), 'MMM dd'));
+    return last7.map(day => ({
+      day,
+      registrations: allUsers.filter((u: any) => format(parseISO(u.created_at), 'MMM dd') === day).length,
+    }));
+  }, [allUsers]);
 
   const saveProfile = async () => {
     if (!user) return;
@@ -299,8 +399,8 @@ const UserProfile = () => {
     );
   }
 
-  const isTraveller = !isDriver && !isHotelOwner;
-  const defaultTab = isDriver ? "vehicles" : isHotelOwner ? "hotels" : "bookings";
+  const isTraveller = !isDriver && !isHotelOwner && !isAdmin;
+  const defaultTab = isAdmin ? "analytics" : isDriver ? "vehicles" : isHotelOwner ? "hotels" : "bookings";
 
   return (
     <div className="min-h-screen bg-background">
@@ -333,7 +433,6 @@ const UserProfile = () => {
                 </Button>
               </div>
 
-              {/* Details Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border/50">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -384,6 +483,17 @@ const UserProfile = () => {
           {/* ===== TABS ===== */}
           <Tabs defaultValue={defaultTab}>
             <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 mb-6 flex-wrap">
+              {/* Admin tab */}
+              {isAdmin && (
+                <>
+                  <TabsTrigger value="analytics" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3">
+                    <BarChart3 className="h-4 w-4 mr-1.5" /> Analytics
+                  </TabsTrigger>
+                  <TabsTrigger value="admin-manage" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-3">
+                    <ShieldCheck className="h-4 w-4 mr-1.5" /> Manage
+                  </TabsTrigger>
+                </>
+              )}
               {/* Traveller tabs */}
               {isTraveller && (
                 <>
@@ -418,6 +528,221 @@ const UserProfile = () => {
                 </>
               )}
             </TabsList>
+
+            {/* === ADMIN: Analytics === */}
+            {isAdmin && (
+              <TabsContent value="analytics">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <Users className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{adminStats.totalUsers}</p>
+                          <p className="text-xs text-muted-foreground">Total Users</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                          <Calendar className="h-5 w-5 text-green-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{adminStats.totalBookings}</p>
+                          <p className="text-xs text-muted-foreground">Total Bookings</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                          <Car className="h-5 w-5 text-orange-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{adminStats.totalVehicles}</p>
+                          <p className="text-xs text-muted-foreground">Vehicles Listed</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                          <Hotel className="h-5 w-5 text-purple-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{adminStats.totalHotels}</p>
+                          <p className="text-xs text-muted-foreground">Hotels Listed</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                          <DollarSign className="h-5 w-5 text-emerald-500" />
+                        </div>
+                        <div>
+                          <p className="text-xl font-bold text-foreground">${(adminStats.totalRevenue / 1000).toFixed(1)}K</p>
+                          <p className="text-xs text-muted-foreground">Total Revenue</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                          <TrendingUp className="h-5 w-5 text-cyan-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{adminStats.todayBookings}</p>
+                          <p className="text-xs text-muted-foreground">Today's Bookings</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
+                          <UserPlus className="h-5 w-5 text-pink-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{adminStats.newUsersThisWeek}</p>
+                          <p className="text-xs text-muted-foreground">New This Week</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                          <Clock className="h-5 w-5 text-yellow-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{adminStats.pendingRequests}</p>
+                          <p className="text-xs text-muted-foreground">Pending Requests</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Charts */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Card className="col-span-2">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <TrendingUp className="h-5 w-5" /> Bookings & Revenue (Last 7 Days)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <AreaChart data={bookingsByDay}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="day" className="text-xs" />
+                          <YAxis yAxisId="left" className="text-xs" />
+                          <YAxis yAxisId="right" orientation="right" className="text-xs" />
+                          <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                          <Area yAxisId="left" type="monotone" dataKey="bookings" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} name="Bookings" />
+                          <Area yAxisId="right" type="monotone" dataKey="revenue" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.3} name="Revenue (USD)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <DollarSign className="h-5 w-5" /> Revenue by Type
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <PieChart>
+                          <Pie data={revenueByType} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} dataKey="value"
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
+                            {revenueByType.map((_, i) => (
+                              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number) => [`USD ${value.toLocaleString()}`, 'Revenue']}
+                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Users className="h-5 w-5" /> Users by Role
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={usersByRole}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="name" className="text-xs" />
+                          <YAxis className="text-xs" />
+                          <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                          <Bar dataKey="value" name="Count">
+                            {usersByRole.map((entry, i) => (
+                              <Cell key={i} fill={entry.fill} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="col-span-2">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <UserPlus className="h-5 w-5" /> New Registrations (Last 7 Days)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={registrationsByDay}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="day" className="text-xs" />
+                          <YAxis className="text-xs" />
+                          <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                          <Bar dataKey="registrations" fill="hsl(var(--primary))" name="Registrations" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            )}
+
+            {/* === ADMIN: Manage (link to full admin dashboard) === */}
+            {isAdmin && (
+              <TabsContent value="admin-manage">
+                <div className="text-center py-12">
+                  <ShieldCheck className="h-12 w-12 text-primary mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">Admin Management</h3>
+                  <p className="text-sm text-muted-foreground mb-6">Access the full admin dashboard to manage users, role requests, bookings, vehicles, and hotels.</p>
+                  <Button onClick={() => navigate("/admin")} className="gap-2">
+                    <ShieldCheck className="h-4 w-4" /> Open Admin Dashboard
+                  </Button>
+                </div>
+              </TabsContent>
+            )}
 
             {/* === TRAVELLER: Bookings === */}
             <TabsContent value="bookings">
