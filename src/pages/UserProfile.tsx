@@ -1084,17 +1084,20 @@ const UserProfile = () => {
                   ))}
                 </div>
               )}
-              {viewItinerary.itinerary_data?.days && Array.isArray(viewItinerary.itinerary_data.days) && (
+              {/* Support both old format (plan) and new format (days) */}
+              {(viewItinerary.itinerary_data?.days || viewItinerary.itinerary_data?.plan) && (
                 <div className="space-y-3">
-                  {viewItinerary.itinerary_data.days.map((day: any, i: number) => (
+                  {(viewItinerary.itinerary_data.days || viewItinerary.itinerary_data.plan || []).map((day: any, i: number) => (
                     <Card key={i} className="border-border/50">
                       <CardContent className="p-4">
-                        <h4 className="font-semibold text-sm text-foreground">Day {i + 1}: {day.destination || day.city || ""}</h4>
-                        {day.description && <p className="text-xs text-muted-foreground mt-1">{day.description}</p>}
+                        <h4 className="font-semibold text-sm text-foreground">Day {i + 1}: {day.destination || day.city || day.activity || ""}</h4>
+                        {(day.description || day.activity) && <p className="text-xs text-muted-foreground mt-1">{day.description || day.activity}</p>}
                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
                           {day.hotel && <span>🏨 {day.hotel}</span>}
-                          {day.hotelCost && <span>USD {Number(day.hotelCost).toFixed(2)}/night</span>}
-                          {day.city && <span>📍 {day.city}</span>}
+                          {(day.hotelCost || day.hotelCost === 0) && <span>USD {Number(day.hotelCost).toFixed(2)}/night</span>}
+                          {(day.city || day.hotelCity || day.destinationCity) && <span>📍 {day.city || day.hotelCity || day.destinationCity}</span>}
+                          {day.transport && <span>🚗 {day.transport}</span>}
+                          {day.dailyTotal && <span>💵 USD {Number(day.dailyTotal).toFixed(2)}/day</span>}
                         </div>
                       </CardContent>
                     </Card>
@@ -1104,7 +1107,9 @@ const UserProfile = () => {
               {viewItinerary.itinerary_data?.vehicle && (
                 <div className="text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">Vehicle: </span>
-                  {viewItinerary.itinerary_data.vehicle}
+                  {typeof viewItinerary.itinerary_data.vehicle === 'string' 
+                    ? viewItinerary.itinerary_data.vehicle 
+                    : `${viewItinerary.itinerary_data.vehicle.model || ''} (${viewItinerary.itinerary_data.vehicle.vehicle_type || ''})`}
                 </div>
               )}
               {viewItinerary.itinerary_data?.totalCost && (
