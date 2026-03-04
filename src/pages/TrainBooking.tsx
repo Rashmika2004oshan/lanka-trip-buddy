@@ -3,151 +3,115 @@ import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Train, ArrowRight, Clock, MapPin, Info, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/lib/i18n";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 
 const STATIONS = ["Colombo", "Kandy", "Hatton", "Nanuoya", "Ella"];
 
-// Train schedule data - realistic Sri Lanka train routes
 const TRAIN_SCHEDULES: Record<string, Record<string, { trains: TrainOption[] }>> = {
   Colombo: {
-    Kandy: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "05:55", arrives: "08:55", duration: "3h 00m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Intercity Express", number: "15", departs: "07:00", arrives: "09:30", duration: "2h 30m", class: ["1st", "2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "09:45", arrives: "13:00", duration: "3h 15m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Night Mail", number: "41", departs: "21:00", arrives: "00:05", duration: "3h 05m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Ella: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "05:55", arrives: "14:40", duration: "8h 45m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "09:45", arrives: "18:15", duration: "8h 30m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Hatton: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "05:55", arrives: "10:45", duration: "4h 50m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "09:45", arrives: "14:30", duration: "4h 45m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Nanuoya: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "05:55", arrives: "12:30", duration: "6h 35m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "09:45", arrives: "16:15", duration: "6h 30m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
+    Kandy: { trains: [
+      { name: "Podi Menike", number: "5", departs: "05:55", arrives: "08:55", duration: "3h 00m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Intercity Express", number: "15", departs: "07:00", arrives: "09:30", duration: "2h 30m", class: ["1st", "2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "09:45", arrives: "13:00", duration: "3h 15m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Night Mail", number: "41", departs: "21:00", arrives: "00:05", duration: "3h 05m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Ella: { trains: [
+      { name: "Podi Menike", number: "5", departs: "05:55", arrives: "14:40", duration: "8h 45m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "09:45", arrives: "18:15", duration: "8h 30m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Hatton: { trains: [
+      { name: "Podi Menike", number: "5", departs: "05:55", arrives: "10:45", duration: "4h 50m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "09:45", arrives: "14:30", duration: "4h 45m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Nanuoya: { trains: [
+      { name: "Podi Menike", number: "5", departs: "05:55", arrives: "12:30", duration: "6h 35m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "09:45", arrives: "16:15", duration: "6h 30m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
   },
   Kandy: {
-    Colombo: {
-      trains: [
-        { name: "Intercity Express", number: "16", departs: "06:30", arrives: "09:00", duration: "2h 30m", class: ["1st", "2nd", "3rd"], days: "Daily" },
-        { name: "Podi Menike", number: "6", departs: "08:35", arrives: "11:35", duration: "3h 00m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "11:10", arrives: "14:30", duration: "3h 20m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Night Mail", number: "42", departs: "18:00", arrives: "21:05", duration: "3h 05m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Ella: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "09:00", arrives: "14:40", duration: "5h 40m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "11:00", arrives: "16:45", duration: "5h 45m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Hatton: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "09:00", arrives: "10:45", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "11:00", arrives: "12:45", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Nanuoya: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "09:00", arrives: "12:20", duration: "3h 20m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "11:00", arrives: "14:15", duration: "3h 15m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
+    Colombo: { trains: [
+      { name: "Intercity Express", number: "16", departs: "06:30", arrives: "09:00", duration: "2h 30m", class: ["1st", "2nd", "3rd"], days: "Daily" },
+      { name: "Podi Menike", number: "6", departs: "08:35", arrives: "11:35", duration: "3h 00m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "11:10", arrives: "14:30", duration: "3h 20m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Night Mail", number: "42", departs: "18:00", arrives: "21:05", duration: "3h 05m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Ella: { trains: [
+      { name: "Podi Menike", number: "5", departs: "09:00", arrives: "14:40", duration: "5h 40m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "11:00", arrives: "16:45", duration: "5h 45m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Hatton: { trains: [
+      { name: "Podi Menike", number: "5", departs: "09:00", arrives: "10:45", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "11:00", arrives: "12:45", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Nanuoya: { trains: [
+      { name: "Podi Menike", number: "5", departs: "09:00", arrives: "12:20", duration: "3h 20m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "11:00", arrives: "14:15", duration: "3h 15m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
   },
   Hatton: {
-    Colombo: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "06:30", arrives: "11:00", duration: "4h 30m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "09:15", arrives: "14:00", duration: "4h 45m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Kandy: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "06:30", arrives: "08:15", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "09:15", arrives: "11:00", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Ella: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "11:30", arrives: "14:00", duration: "2h 30m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "13:00", arrives: "15:30", duration: "2h 30m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Nanuoya: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "11:30", arrives: "12:55", duration: "1h 25m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "13:00", arrives: "14:20", duration: "1h 20m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
+    Colombo: { trains: [
+      { name: "Podi Menike", number: "6", departs: "06:30", arrives: "11:00", duration: "4h 30m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "09:15", arrives: "14:00", duration: "4h 45m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Kandy: { trains: [
+      { name: "Podi Menike", number: "6", departs: "06:30", arrives: "08:15", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "09:15", arrives: "11:00", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Ella: { trains: [
+      { name: "Podi Menike", number: "5", departs: "11:30", arrives: "14:00", duration: "2h 30m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "13:00", arrives: "15:30", duration: "2h 30m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Nanuoya: { trains: [
+      { name: "Podi Menike", number: "5", departs: "11:30", arrives: "12:55", duration: "1h 25m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "13:00", arrives: "14:20", duration: "1h 20m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
   },
   Nanuoya: {
-    Colombo: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "05:00", arrives: "11:35", duration: "6h 35m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "07:00", arrives: "13:30", duration: "6h 30m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Kandy: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "05:00", arrives: "08:20", duration: "3h 20m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "07:00", arrives: "10:15", duration: "3h 15m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Ella: {
-      trains: [
-        { name: "Podi Menike", number: "5", departs: "13:30", arrives: "15:15", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "7", departs: "15:00", arrives: "16:45", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Hatton: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "05:00", arrives: "06:25", duration: "1h 25m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "07:00", arrives: "08:20", duration: "1h 20m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
+    Colombo: { trains: [
+      { name: "Podi Menike", number: "6", departs: "05:00", arrives: "11:35", duration: "6h 35m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "07:00", arrives: "13:30", duration: "6h 30m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Kandy: { trains: [
+      { name: "Podi Menike", number: "6", departs: "05:00", arrives: "08:20", duration: "3h 20m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "07:00", arrives: "10:15", duration: "3h 15m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Ella: { trains: [
+      { name: "Podi Menike", number: "5", departs: "13:30", arrives: "15:15", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "7", departs: "15:00", arrives: "16:45", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Hatton: { trains: [
+      { name: "Podi Menike", number: "6", departs: "05:00", arrives: "06:25", duration: "1h 25m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "07:00", arrives: "08:20", duration: "1h 20m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
   },
   Ella: {
-    Colombo: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "06:00", arrives: "14:45", duration: "8h 45m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "08:15", arrives: "16:45", duration: "8h 30m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Kandy: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "06:00", arrives: "11:40", duration: "5h 40m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "08:15", arrives: "14:00", duration: "5h 45m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Hatton: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "06:00", arrives: "08:30", duration: "2h 30m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "08:15", arrives: "10:45", duration: "2h 30m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
-    Nanuoya: {
-      trains: [
-        { name: "Podi Menike", number: "6", departs: "06:00", arrives: "07:45", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
-        { name: "Udarata Menike", number: "8", departs: "08:15", arrives: "10:00", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
-      ]
-    },
+    Colombo: { trains: [
+      { name: "Podi Menike", number: "6", departs: "06:00", arrives: "14:45", duration: "8h 45m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "08:15", arrives: "16:45", duration: "8h 30m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Kandy: { trains: [
+      { name: "Podi Menike", number: "6", departs: "06:00", arrives: "11:40", duration: "5h 40m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "08:15", arrives: "14:00", duration: "5h 45m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Hatton: { trains: [
+      { name: "Podi Menike", number: "6", departs: "06:00", arrives: "08:30", duration: "2h 30m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "08:15", arrives: "10:45", duration: "2h 30m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
+    Nanuoya: { trains: [
+      { name: "Podi Menike", number: "6", departs: "06:00", arrives: "07:45", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
+      { name: "Udarata Menike", number: "8", departs: "08:15", arrives: "10:00", duration: "1h 45m", class: ["2nd", "3rd"], days: "Daily" },
+    ]},
   }
 };
 
@@ -164,11 +128,19 @@ interface TrainOption {
 const TrainBooking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [searched, setSearched] = useState(false);
   const [expandedTrain, setExpandedTrain] = useState<string | null>(null);
   const [bookingLoading, setBookingLoading] = useState<string | null>(null);
+
+  // Booking dialog state
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [selectedTrain, setSelectedTrain] = useState<TrainOption | null>(null);
+  const [passengerName, setPassengerName] = useState("");
+  const [passportNumber, setPassportNumber] = useState("");
+  const [numberOfTickets, setNumberOfTickets] = useState("1");
 
   const availableTrains: TrainOption[] = searched && from && to && from !== to
     ? TRAIN_SCHEDULES[from]?.[to]?.trains || []
@@ -191,14 +163,37 @@ const TrainBooking = () => {
     }
   };
 
-  const handleBook = async (train: TrainOption) => {
+  const openBookingDialog = (train: TrainOption) => {
     if (!user) {
       toast.error("Please sign in to book a train");
       navigate("/auth");
       return;
     }
+    setSelectedTrain(train);
+    setPassengerName("");
+    setPassportNumber("");
+    setNumberOfTickets("1");
+    setBookingDialogOpen(true);
+  };
 
-    setBookingLoading(train.number);
+  const handleBook = async () => {
+    if (!selectedTrain || !user) return;
+
+    if (!passengerName.trim()) {
+      toast.error("Please enter passenger name");
+      return;
+    }
+    if (!passportNumber.trim()) {
+      toast.error("Please enter passport number");
+      return;
+    }
+    const tickets = parseInt(numberOfTickets);
+    if (!tickets || tickets < 1 || tickets > 10) {
+      toast.error("Please enter a valid number of tickets (1-10)");
+      return;
+    }
+
+    setBookingLoading(selectedTrain.number);
     try {
       const { data: profile } = await supabase
         .from("profiles")
@@ -210,23 +205,27 @@ const TrainBooking = () => {
         body: {
           bookingType: "train",
           bookingDetails: {
-            trainName: train.name,
-            trainNumber: train.number,
+            trainName: selectedTrain.name,
+            trainNumber: selectedTrain.number,
             from,
             to,
-            departure: train.departs,
-            arrival: train.arrives,
-            duration: train.duration,
-            class: train.class.join(", "),
-            days: train.days,
+            departure: selectedTrain.departs,
+            arrival: selectedTrain.arrives,
+            duration: selectedTrain.duration,
+            class: selectedTrain.class.join(", "),
+            days: selectedTrain.days,
+            passengerName,
+            passportNumber,
+            numberOfTickets: tickets,
           },
           customerEmail: user.email,
-          customerName: profile?.full_name || "Guest",
+          customerName: profile?.full_name || passengerName,
           totalAmount: 0,
         },
       });
 
-      toast.success(`Train booking request sent! You'll receive a confirmation email shortly.`);
+      toast.success(`Train booking request sent for ${tickets} ticket(s)! You'll receive a confirmation email shortly.`);
+      setBookingDialogOpen(false);
     } catch (error) {
       console.error("Error sending train booking notification:", error);
       toast.error("Failed to process booking. Please try again.");
@@ -248,7 +247,6 @@ const TrainBooking = () => {
       <Header />
       <div className="pt-20">
         <div className="container mx-auto px-4 py-8">
-          {/* Hero */}
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 mb-3">
               <Train className="h-8 w-8 text-primary" />
@@ -259,7 +257,6 @@ const TrainBooking = () => {
             </p>
           </div>
 
-          {/* Search Card */}
           <Card className="max-w-2xl mx-auto mb-8 shadow-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -272,26 +269,18 @@ const TrainBooking = () => {
                 <div className="space-y-2">
                   <Label>From</Label>
                   <Select value={from} onValueChange={v => { setFrom(v); setSearched(false); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select station" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select station" /></SelectTrigger>
                     <SelectContent>
-                      {STATIONS.map(s => (
-                        <SelectItem key={s} value={s} disabled={s === to}>{s}</SelectItem>
-                      ))}
+                      {STATIONS.map(s => (<SelectItem key={s} value={s} disabled={s === to}>{s}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>To</Label>
                   <Select value={to} onValueChange={v => { setTo(v); setSearched(false); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select station" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select station" /></SelectTrigger>
                     <SelectContent>
-                      {STATIONS.map(s => (
-                        <SelectItem key={s} value={s} disabled={s === from}>{s}</SelectItem>
-                      ))}
+                      {STATIONS.map(s => (<SelectItem key={s} value={s} disabled={s === from}>{s}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -307,12 +296,11 @@ const TrainBooking = () => {
 
               <Button className="w-full bg-gradient-tropical text-primary-foreground hover:opacity-90" onClick={handleSearch}>
                 <Train className="h-4 w-4 mr-2" />
-                Search Trains
+                {t("train.searchTrains")}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Results */}
           {searched && (
             <div className="max-w-2xl mx-auto">
               {availableTrains.length === 0 ? (
@@ -347,8 +335,7 @@ const TrainBooking = () => {
                               </div>
                               <div className="flex-1 flex flex-col items-center gap-1">
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {train.duration}
+                                  <Clock className="h-3 w-3" />{train.duration}
                                 </div>
                                 <div className="w-full h-px bg-border relative">
                                   <div className="absolute inset-0 flex items-center justify-center">
@@ -369,7 +356,6 @@ const TrainBooking = () => {
                           </div>
                         </div>
 
-                        {/* Expand for info */}
                         <button
                           className="flex items-center gap-1 text-xs text-muted-foreground mt-3 hover:text-foreground transition-colors"
                           onClick={() => setExpandedTrain(expandedTrain === `${i}` ? null : `${i}`)}
@@ -389,11 +375,11 @@ const TrainBooking = () => {
 
                         <Button
                           className="w-full mt-4 bg-gradient-tropical text-primary-foreground hover:opacity-90"
-                          onClick={() => handleBook(train)}
+                          onClick={() => openBookingDialog(train)}
                           disabled={bookingLoading === train.number}
                         >
                           {bookingLoading === train.number && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                          Book This Train
+                          {t("train.bookTrain")}
                         </Button>
                       </CardContent>
                     </Card>
@@ -403,7 +389,6 @@ const TrainBooking = () => {
             </div>
           )}
 
-          {/* Stations Info */}
           <div className="max-w-2xl mx-auto mt-10">
             <h2 className="text-lg font-semibold text-foreground mb-4">Available Stations</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -420,6 +405,49 @@ const TrainBooking = () => {
           </div>
         </div>
       </div>
+
+      {/* Train Booking Dialog */}
+      <Dialog open={bookingDialogOpen} onOpenChange={setBookingDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Train className="h-5 w-5 text-primary" />
+              Book Train Ticket
+            </DialogTitle>
+          </DialogHeader>
+          {selectedTrain && (
+            <div className="space-y-4 py-2">
+              <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                <p className="font-semibold">{selectedTrain.name} (#{selectedTrain.number})</p>
+                <p className="text-muted-foreground">{from} → {to} · {selectedTrain.duration}</p>
+                <p className="text-muted-foreground">Departs: {selectedTrain.departs} · Arrives: {selectedTrain.arrives}</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>{t("train.passengerName")} *</Label>
+                <Input value={passengerName} onChange={e => setPassengerName(e.target.value)} placeholder="Enter full name as on passport" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>{t("train.passportNumber")} *</Label>
+                <Input value={passportNumber} onChange={e => setPassportNumber(e.target.value)} placeholder="Enter passport number" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>{t("train.numberOfTickets")} *</Label>
+                <Input type="number" min="1" max="10" value={numberOfTickets} onChange={e => setNumberOfTickets(e.target.value)} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBookingDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleBook} disabled={!!bookingLoading} className="bg-gradient-tropical text-primary-foreground">
+              {bookingLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Confirm Booking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
