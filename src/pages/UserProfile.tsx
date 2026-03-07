@@ -113,6 +113,12 @@ const UserProfile = () => {
   const [editHotel, setEditHotel] = useState<HotelItem | null>(null);
   const [viewItinerary, setViewItinerary] = useState<SavedItinerary | null>(null);
 
+  // Review state for traveller bookings
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [profileReviewRating, setProfileReviewRating] = useState(5);
+  const [profileReviewText, setProfileReviewText] = useState("");
+  const [submittingProfileReview, setSubmittingProfileReview] = useState(false);
+
   // Admin analytics state
   const [adminStats, setAdminStats] = useState({
     totalUsers: 0, totalBookings: 0, totalVehicles: 0, totalHotels: 0,
