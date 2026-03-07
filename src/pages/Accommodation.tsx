@@ -314,7 +314,7 @@ const Accommodation = () => {
                         <User className="h-3.5 w-3.5 text-primary" />
                       </div>
                       <span className="text-sm font-medium text-foreground">
-                        {r.profiles?.full_name || "Anonymous"}
+                        {r.reviewer_name || "Anonymous"}
                       </span>
                     </div>
                     <span className="text-xs text-muted-foreground">
