@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Mail, Globe, Calendar, Car, Hotel, MapPin, Plus,
   Loader2, Pencil, Trash2, Star, Download, Eye, ChevronRight, Clock,
-  Users, TrendingUp, DollarSign, UserPlus, ShieldCheck, BarChart3,
+  Users, TrendingUp, DollarSign, UserPlus, ShieldCheck, BarChart3, MessageSquare, Send,
 } from "lucide-react";
 import { format, subDays, startOfDay, endOfDay, parseISO, isWithinInterval } from "date-fns";
 import { toast } from "sonner";
