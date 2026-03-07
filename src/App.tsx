@@ -20,6 +20,7 @@ import HotelOwnerDashboard from "./pages/HotelOwnerDashboard";
 import MapDirections from "./pages/MapDirections";
 import TrainBooking from "./pages/TrainBooking";
 import UserProfile from "./pages/UserProfile";
+import SpecialPlaces from "./pages/SpecialPlaces";
 
 const queryClient = new QueryClient();
 
