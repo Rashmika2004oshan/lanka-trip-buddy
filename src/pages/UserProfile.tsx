@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Mail, Globe, Calendar, Car, Hotel, MapPin, Plus,
   Loader2, Pencil, Trash2, Star, Download, Eye, ChevronRight, Clock,
-  Users, TrendingUp, DollarSign, UserPlus, ShieldCheck, BarChart3,
+  Users, TrendingUp, DollarSign, UserPlus, ShieldCheck, BarChart3, MessageSquare, Send,
 } from "lucide-react";
 import { format, subDays, startOfDay, endOfDay, parseISO, isWithinInterval } from "date-fns";
 import { toast } from "sonner";
@@ -57,6 +57,8 @@ interface Booking {
   number_of_persons?: number;
   number_of_nights?: number;
   room_type?: string;
+  hotel_id?: string;
+  vehicle_id?: string;
   vehicles?: { vehicle_type: string; model: string; vehicle_number: string };
   hotels?: { hotel_name: string; city: string; stars: number };
 }
@@ -112,6 +114,12 @@ const UserProfile = () => {
   const [editVehicle, setEditVehicle] = useState<VehicleItem | null>(null);
   const [editHotel, setEditHotel] = useState<HotelItem | null>(null);
   const [viewItinerary, setViewItinerary] = useState<SavedItinerary | null>(null);
+
+  // Review state for traveller bookings
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [profileReviewRating, setProfileReviewRating] = useState(5);
+  const [profileReviewText, setProfileReviewText] = useState("");
+  const [submittingProfileReview, setSubmittingProfileReview] = useState(false);
 
   // Admin analytics state
   const [adminStats, setAdminStats] = useState({
@@ -386,6 +394,29 @@ const UserProfile = () => {
     if (isDriver) return "bg-primary/10 text-primary border-primary/20";
     if (isHotelOwner) return "bg-secondary/10 text-secondary border-secondary/20";
     return "bg-muted text-muted-foreground border-border";
+  };
+
+  const submitProfileReview = async () => {
+    if (!user || !reviewBooking || reviewBooking.booking_type !== "accommodation") return;
+    setSubmittingProfileReview(true);
+    try {
+      const placeKey = `hotel:${reviewBooking.hotel_id}`;
+      const { error } = await supabase.from("travel_reviews").insert({
+        user_id: user.id,
+        place_name: placeKey,
+        rating: profileReviewRating,
+        review_text: profileReviewText || null,
+      });
+      if (error) throw error;
+      toast.success("Review submitted!");
+      setReviewBooking(null);
+      setProfileReviewText("");
+      setProfileReviewRating(5);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit review");
+    } finally {
+      setSubmittingProfileReview(false);
+    }
   };
 
   if (authLoading || rolesLoading || loading) {
@@ -774,7 +805,18 @@ const UserProfile = () => {
                         </div>
                         <div className="flex justify-between items-center mt-3 pt-3 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">{format(new Date(b.created_at), "MMM dd, yyyy")}</span>
-                          <span className="font-bold text-primary">USD {Number(b.total_amount).toFixed(2)}</span>
+                          <div className="flex items-center gap-2">
+                            {b.booking_type === "accommodation" && (
+                              <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => {
+                                setReviewBooking(b);
+                                setProfileReviewRating(5);
+                                setProfileReviewText("");
+                              }}>
+                                <MessageSquare className="h-3 w-3" /> Review
+                              </Button>
+                            )}
+                            <span className="font-bold text-primary">USD {Number(b.total_amount).toFixed(2)}</span>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1123,6 +1165,51 @@ const UserProfile = () => {
             <Button variant="outline" onClick={() => setViewItinerary(null)}>Close</Button>
             <Button onClick={() => viewItinerary && downloadItineraryPdf(viewItinerary)} className="gap-1.5">
               <Download className="h-4 w-4" /> Download PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Dialog for booked hotels */}
+      <Dialog open={!!reviewBooking} onOpenChange={() => setReviewBooking(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Review — {reviewBooking?.hotels?.hotel_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Your Rating</p>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button key={s} onClick={() => setProfileReviewRating(s)} className="focus:outline-none">
+                    <Star
+                      className={`h-7 w-7 transition-colors ${
+                        s <= profileReviewRating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
+                      }`}
+                    />
+                  </button>
+                ))}
+                <span className="ml-2 text-sm text-muted-foreground">{profileReviewRating}/5</span>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Your Review</Label>
+              <Textarea
+                placeholder="Share your experience..."
+                value={profileReviewText}
+                onChange={(e) => setProfileReviewText(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewBooking(null)}>Cancel</Button>
+            <Button onClick={submitProfileReview} disabled={submittingProfileReview} className="gap-1.5">
+              {submittingProfileReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Submit Review
             </Button>
           </DialogFooter>
         </DialogContent>

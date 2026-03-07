@@ -4,10 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import Header from "@/components/Header";
 import BookingDialog from "@/components/BookingDialog";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Hotel, Star, Plus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useI18n } from "@/lib/i18n";
+import { Hotel, Star, Plus, MessageSquare, Send, Loader2, User } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { format } from "date-fns";
 
 interface HotelData {
   id: string;
@@ -19,13 +27,34 @@ interface HotelData {
   image_url: string | null;
 }
 
+interface Review {
+  id: string;
+  user_id: string;
+  place_name: string;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+  reviewer_name?: string | null;
+}
+
 const Accommodation = () => {
   const navigate = useNavigate();
   const { isHotelOwner } = useUserRole();
+  const { user } = useAuth();
+  const { t } = useI18n();
   const [hotels, setHotels] = useState<HotelData[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState<HotelData | null>(null);
+
+  // Review state
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewHotel, setReviewHotel] = useState<HotelData | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newReviewText, setNewReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     fetchHotels();
@@ -47,6 +76,68 @@ const Accommodation = () => {
     }
   };
 
+  const openReviewDialog = async (hotel: HotelData) => {
+    setReviewHotel(hotel);
+    setReviewDialogOpen(true);
+    setNewRating(5);
+    setNewReviewText("");
+    setReviewsLoading(true);
+    try {
+      const { data } = await supabase
+        .from("travel_reviews")
+        .select("*")
+        .eq("place_name", `hotel:${hotel.id}`)
+        .order("created_at", { ascending: false });
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(r => r.user_id))];
+        const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+        const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+        setReviews(data.map(r => ({ ...r, reviewer_name: profileMap.get(r.user_id) || null })));
+      } else {
+        setReviews([]);
+      }
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!user || !reviewHotel) return;
+    setSubmittingReview(true);
+    try {
+      const { error } = await supabase.from("travel_reviews").insert({
+        user_id: user.id,
+        place_name: `hotel:${reviewHotel.id}`,
+        rating: newRating,
+        review_text: newReviewText || null,
+      });
+      if (error) throw error;
+      toast.success("Review submitted!");
+      setNewReviewText("");
+      setNewRating(5);
+      // Refresh reviews
+      const { data } = await supabase
+        .from("travel_reviews")
+        .select("*")
+        .eq("place_name", `hotel:${reviewHotel.id}`)
+        .order("created_at", { ascending: false });
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(r => r.user_id))];
+        const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+        const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+        setReviews(data.map(r => ({ ...r, reviewer_name: profileMap.get(r.user_id) || null })));
+      } else {
+        setReviews([]);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit review");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'Luxury':
@@ -60,6 +151,11 @@ const Accommodation = () => {
     }
   };
 
+  const getAvgRating = (hotelId: string) => {
+    // We don't preload all reviews, so this is a placeholder
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -67,7 +163,7 @@ const Accommodation = () => {
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Accommodation
+              {t("nav.hotels")}
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Find the perfect place to stay during your Sri Lankan journey
@@ -125,14 +221,25 @@ const Accommodation = () => {
                       <span className="text-2xl font-bold text-primary">
                         USD {hotel.per_night_charge}/night
                       </span>
-                      <Button 
-                        onClick={() => {
-                          setSelectedHotel(hotel);
-                          setBookingDialogOpen(true);
-                        }}
-                      >
-                        Book Now
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openReviewDialog(hotel)}
+                          className="gap-1"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          {t("review.reviews")}
+                        </Button>
+                        <Button 
+                          onClick={() => {
+                            setSelectedHotel(hotel);
+                            setBookingDialogOpen(true);
+                          }}
+                        >
+                          {t("booking.bookNow")}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -150,6 +257,89 @@ const Accommodation = () => {
           itemData={selectedHotel}
         />
       )}
+
+      {/* Review Dialog */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              {t("review.reviews")} — {reviewHotel?.hotel_name}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Submit Review (only for logged-in users) */}
+          {user && (
+            <div className="space-y-3 border-b border-border/50 pb-4">
+              <p className="text-sm font-medium text-foreground">{t("review.leaveReview")}</p>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button key={s} onClick={() => setNewRating(s)} className="focus:outline-none">
+                    <Star
+                      className={`h-6 w-6 transition-colors ${
+                        s <= newRating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
+                      }`}
+                    />
+                  </button>
+                ))}
+                <span className="ml-2 text-sm text-muted-foreground">{newRating}/5</span>
+              </div>
+              <Textarea
+                placeholder={t("review.yourReview")}
+                value={newReviewText}
+                onChange={(e) => setNewReviewText(e.target.value)}
+                rows={3}
+              />
+              <Button onClick={submitReview} disabled={submittingReview} size="sm" className="gap-1.5">
+                {submittingReview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                {t("review.submitReview")}
+              </Button>
+            </div>
+          )}
+
+          {/* Existing Reviews */}
+          <div className="space-y-3 pt-2">
+            {reviewsLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : reviews.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">{t("review.noReviews")}</p>
+            ) : (
+              reviews.map((r) => (
+                <div key={r.id} className="border border-border/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <span className="text-sm font-medium text-foreground">
+                        {r.reviewer_name || "Anonymous"}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(r.created_at), "MMM dd, yyyy")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-0.5 mb-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-3.5 w-3.5 ${
+                          i < r.rating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  {r.review_text && (
+                    <p className="text-sm text-muted-foreground">{r.review_text}</p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

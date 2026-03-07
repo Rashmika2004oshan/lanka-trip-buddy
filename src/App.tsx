@@ -20,6 +20,7 @@ import HotelOwnerDashboard from "./pages/HotelOwnerDashboard";
 import MapDirections from "./pages/MapDirections";
 import TrainBooking from "./pages/TrainBooking";
 import UserProfile from "./pages/UserProfile";
+import SpecialPlaces from "./pages/SpecialPlaces";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/hotel-owner-dashboard" element={<HotelOwnerDashboard />} />
             <Route path="/map" element={<MapDirections />} />
             <Route path="/train-booking" element={<TrainBooking />} />
+            <Route path="/special-places" element={<SpecialPlaces />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
