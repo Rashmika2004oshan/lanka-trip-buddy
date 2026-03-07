@@ -805,7 +805,18 @@ const UserProfile = () => {
                         </div>
                         <div className="flex justify-between items-center mt-3 pt-3 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">{format(new Date(b.created_at), "MMM dd, yyyy")}</span>
-                          <span className="font-bold text-primary">USD {Number(b.total_amount).toFixed(2)}</span>
+                          <div className="flex items-center gap-2">
+                            {b.booking_type === "accommodation" && (
+                              <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => {
+                                setReviewBooking(b);
+                                setProfileReviewRating(5);
+                                setProfileReviewText("");
+                              }}>
+                                <MessageSquare className="h-3 w-3" /> Review
+                              </Button>
+                            )}
+                            <span className="font-bold text-primary">USD {Number(b.total_amount).toFixed(2)}</span>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
