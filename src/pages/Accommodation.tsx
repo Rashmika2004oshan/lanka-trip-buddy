@@ -120,10 +120,17 @@ const Accommodation = () => {
       // Refresh reviews
       const { data } = await supabase
         .from("travel_reviews")
-        .select("*, profiles(full_name)")
+        .select("*")
         .eq("place_name", `hotel:${reviewHotel.id}`)
         .order("created_at", { ascending: false });
-      setReviews(data || []);
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(r => r.user_id))];
+        const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+        const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+        setReviews(data.map(r => ({ ...r, reviewer_name: profileMap.get(r.user_id) || null })));
+      } else {
+        setReviews([]);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to submit review");
     } finally {
