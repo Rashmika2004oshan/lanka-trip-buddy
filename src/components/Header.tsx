@@ -22,6 +22,7 @@ const Header = () => {
     { href: "/", label: t("nav.home") },
     { href: "/vehicle-rental", label: t("nav.vehicles") },
     { href: "/accommodation", label: t("nav.hotels") },
+    { href: "/special-places", label: t("nav.places") },
     { href: "/weather", label: t("nav.weather") },
     { href: "/map", label: t("nav.map") },
     { href: "/train-booking", label: t("nav.trains") },
