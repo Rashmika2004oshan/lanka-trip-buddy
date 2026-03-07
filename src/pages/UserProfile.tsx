@@ -1169,6 +1169,51 @@ const UserProfile = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Review Dialog for booked hotels */}
+      <Dialog open={!!reviewBooking} onOpenChange={() => setReviewBooking(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Review — {reviewBooking?.hotels?.hotel_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Your Rating</p>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button key={s} onClick={() => setProfileReviewRating(s)} className="focus:outline-none">
+                    <Star
+                      className={`h-7 w-7 transition-colors ${
+                        s <= profileReviewRating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
+                      }`}
+                    />
+                  </button>
+                ))}
+                <span className="ml-2 text-sm text-muted-foreground">{profileReviewRating}/5</span>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Your Review</Label>
+              <Textarea
+                placeholder="Share your experience..."
+                value={profileReviewText}
+                onChange={(e) => setProfileReviewText(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewBooking(null)}>Cancel</Button>
+            <Button onClick={submitProfileReview} disabled={submittingProfileReview} className="gap-1.5">
+              {submittingProfileReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Submit Review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
