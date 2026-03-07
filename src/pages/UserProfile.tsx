@@ -394,6 +394,31 @@ const UserProfile = () => {
     return "bg-muted text-muted-foreground border-border";
   };
 
+  const submitProfileReview = async () => {
+    if (!user || !reviewBooking || reviewBooking.booking_type !== "accommodation") return;
+    setSubmittingProfileReview(true);
+    try {
+      const hotelId = (reviewBooking as any).hotels ? reviewBooking.id : null;
+      // Use hotel_id from the booking data
+      const placeKey = `hotel:${(reviewBooking as any).hotel_id || reviewBooking.id}`;
+      const { error } = await supabase.from("travel_reviews").insert({
+        user_id: user.id,
+        place_name: placeKey,
+        rating: profileReviewRating,
+        review_text: profileReviewText || null,
+      });
+      if (error) throw error;
+      toast.success("Review submitted!");
+      setReviewBooking(null);
+      setProfileReviewText("");
+      setProfileReviewRating(5);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit review");
+    } finally {
+      setSubmittingProfileReview(false);
+    }
+  };
+
   if (authLoading || rolesLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
