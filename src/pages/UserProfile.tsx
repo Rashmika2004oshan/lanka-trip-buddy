@@ -400,9 +400,7 @@ const UserProfile = () => {
     if (!user || !reviewBooking || reviewBooking.booking_type !== "accommodation") return;
     setSubmittingProfileReview(true);
     try {
-      const hotelId = (reviewBooking as any).hotels ? reviewBooking.id : null;
-      // Use hotel_id from the booking data
-      const placeKey = `hotel:${(reviewBooking as any).hotel_id || reviewBooking.id}`;
+      const placeKey = `hotel:${reviewBooking.hotel_id}`;
       const { error } = await supabase.from("travel_reviews").insert({
         user_id: user.id,
         place_name: placeKey,
