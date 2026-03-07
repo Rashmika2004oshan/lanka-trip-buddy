@@ -57,6 +57,8 @@ interface Booking {
   number_of_persons?: number;
   number_of_nights?: number;
   room_type?: string;
+  hotel_id?: string;
+  vehicle_id?: string;
   vehicles?: { vehicle_type: string; model: string; vehicle_number: string };
   hotels?: { hotel_name: string; city: string; stars: number };
 }
