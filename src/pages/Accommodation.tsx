@@ -34,7 +34,7 @@ interface Review {
   rating: number;
   review_text: string | null;
   created_at: string;
-  profiles?: { full_name: string | null };
+  reviewer_name?: string | null;
 }
 
 const Accommodation = () => {
