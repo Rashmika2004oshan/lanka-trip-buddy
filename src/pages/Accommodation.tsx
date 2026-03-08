@@ -13,7 +13,7 @@ import { useI18n } from "@/lib/i18n";
 import { Hotel, Star, Plus, MessageSquare, Send, Loader2, User } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
 
@@ -47,7 +47,6 @@ const Accommodation = () => {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState<HotelData | null>(null);
 
-  // Review state
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewHotel, setReviewHotel] = useState<HotelData | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -114,10 +113,9 @@ const Accommodation = () => {
         review_text: newReviewText || null,
       });
       if (error) throw error;
-      toast.success("Review submitted!");
+      toast.success(t("review.submitReview") + " ✓");
       setNewReviewText("");
       setNewRating(5);
-      // Refresh reviews
       const { data } = await supabase
         .from("travel_reviews")
         .select("*")
@@ -140,20 +138,11 @@ const Accommodation = () => {
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'Luxury':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-      case 'Middle':
-        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      case 'Low':
-        return 'bg-green-500/10 text-green-500 border-green-500/20';
-      default:
-        return '';
+      case 'Luxury': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 'Middle': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'Low': return 'bg-green-500/10 text-green-500 border-green-500/20';
+      default: return '';
     }
-  };
-
-  const getAvgRating = (hotelId: string) => {
-    // We don't preload all reviews, so this is a placeholder
-    return null;
   };
 
   return (
@@ -166,35 +155,31 @@ const Accommodation = () => {
               {t("nav.hotels")}
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Find the perfect place to stay during your Sri Lankan journey
+              {t("hotels.subtitle")}
             </p>
             {isHotelOwner && (
               <Button onClick={() => navigate("/hotel-survey")} className="mt-4 gap-2">
                 <Plus className="h-4 w-4" />
-                List Your Hotel
+                {t("hotels.listHotel")}
               </Button>
             )}
           </div>
 
           {loading ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading hotels...</p>
+              <p className="text-muted-foreground">{t("hotels.loading")}</p>
             </div>
           ) : hotels.length === 0 ? (
             <div className="text-center py-12">
               <Hotel className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No hotels available yet</p>
+              <p className="text-muted-foreground">{t("hotels.noHotels")}</p>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {hotels.map((hotel) => (
                 <Card key={hotel.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   {hotel.image_url ? (
-                    <img
-                      src={hotel.image_url}
-                      alt={hotel.hotel_name}
-                      className="w-full h-48 object-cover"
-                    />
+                    <img src={hotel.image_url} alt={hotel.hotel_name} className="w-full h-48 object-cover" />
                   ) : (
                     <div className="w-full h-48 bg-muted flex items-center justify-center">
                       <Hotel className="h-12 w-12 text-muted-foreground" />
@@ -202,12 +187,8 @@ const Accommodation = () => {
                   )}
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-xl font-semibold text-foreground">
-                        {hotel.hotel_name}
-                      </h3>
-                      <Badge variant="outline" className={getCategoryColor(hotel.category)}>
-                        {hotel.category}
-                      </Badge>
+                      <h3 className="text-xl font-semibold text-foreground">{hotel.hotel_name}</h3>
+                      <Badge variant="outline" className={getCategoryColor(hotel.category)}>{hotel.category}</Badge>
                     </div>
                     <div className="flex items-center gap-1 mb-2">
                       {Array.from({ length: hotel.stars }).map((_, i) => (
@@ -215,28 +196,18 @@ const Accommodation = () => {
                       ))}
                     </div>
                     <p className="text-muted-foreground mb-4">
-                      <span className="font-semibold">Location:</span> {hotel.city}
+                      <span className="font-semibold">{t("hotels.location")}:</span> {hotel.city}
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-primary">
-                        USD {hotel.per_night_charge}/night
+                        USD {hotel.per_night_charge}{t("hotels.perNight")}
                       </span>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openReviewDialog(hotel)}
-                          className="gap-1"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => openReviewDialog(hotel)} className="gap-1">
                           <MessageSquare className="h-3.5 w-3.5" />
                           {t("review.reviews")}
                         </Button>
-                        <Button 
-                          onClick={() => {
-                            setSelectedHotel(hotel);
-                            setBookingDialogOpen(true);
-                          }}
-                        >
+                        <Button onClick={() => { setSelectedHotel(hotel); setBookingDialogOpen(true); }}>
                           {t("booking.bookNow")}
                         </Button>
                       </div>
@@ -250,15 +221,9 @@ const Accommodation = () => {
       </main>
 
       {selectedHotel && (
-        <BookingDialog
-          open={bookingDialogOpen}
-          onOpenChange={setBookingDialogOpen}
-          bookingType="accommodation"
-          itemData={selectedHotel}
-        />
+        <BookingDialog open={bookingDialogOpen} onOpenChange={setBookingDialogOpen} bookingType="accommodation" itemData={selectedHotel} />
       )}
 
-      {/* Review Dialog */}
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -268,28 +233,18 @@ const Accommodation = () => {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Submit Review (only for logged-in users) */}
           {user && (
             <div className="space-y-3 border-b border-border/50 pb-4">
               <p className="text-sm font-medium text-foreground">{t("review.leaveReview")}</p>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button key={s} onClick={() => setNewRating(s)} className="focus:outline-none">
-                    <Star
-                      className={`h-6 w-6 transition-colors ${
-                        s <= newRating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
-                      }`}
-                    />
+                    <Star className={`h-6 w-6 transition-colors ${s <= newRating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"}`} />
                   </button>
                 ))}
                 <span className="ml-2 text-sm text-muted-foreground">{newRating}/5</span>
               </div>
-              <Textarea
-                placeholder={t("review.yourReview")}
-                value={newReviewText}
-                onChange={(e) => setNewReviewText(e.target.value)}
-                rows={3}
-              />
+              <Textarea placeholder={t("review.yourReview")} value={newReviewText} onChange={(e) => setNewReviewText(e.target.value)} rows={3} />
               <Button onClick={submitReview} disabled={submittingReview} size="sm" className="gap-1.5">
                 {submittingReview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 {t("review.submitReview")}
@@ -297,12 +252,9 @@ const Accommodation = () => {
             </div>
           )}
 
-          {/* Existing Reviews */}
           <div className="space-y-3 pt-2">
             {reviewsLoading ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              </div>
+              <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
             ) : reviews.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">{t("review.noReviews")}</p>
             ) : (
@@ -313,27 +265,16 @@ const Accommodation = () => {
                       <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                         <User className="h-3.5 w-3.5 text-primary" />
                       </div>
-                      <span className="text-sm font-medium text-foreground">
-                        {r.reviewer_name || "Anonymous"}
-                      </span>
+                      <span className="text-sm font-medium text-foreground">{r.reviewer_name || "Anonymous"}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(r.created_at), "MMM dd, yyyy")}
-                    </span>
+                    <span className="text-xs text-muted-foreground">{format(new Date(r.created_at), "MMM dd, yyyy")}</span>
                   </div>
                   <div className="flex items-center gap-0.5 mb-2">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-3.5 w-3.5 ${
-                          i < r.rating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
-                        }`}
-                      />
+                      <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"}`} />
                     ))}
                   </div>
-                  {r.review_text && (
-                    <p className="text-sm text-muted-foreground">{r.review_text}</p>
-                  )}
+                  {r.review_text && <p className="text-sm text-muted-foreground">{r.review_text}</p>}
                 </div>
               ))
             )}

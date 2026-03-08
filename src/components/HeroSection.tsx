@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-srilanka.jpg";
 import { ArrowDown, MapPin } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 const HeroSection = () => {
+  const { t } = useI18n();
+
   const scrollToContent = () => {
     document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -21,14 +24,15 @@ const HeroSection = () => {
           <div className="max-w-2xl space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="flex items-center gap-2 text-white/80">
               <MapPin className="w-4 h-4" />
-              <span className="text-sm font-medium tracking-wide uppercase">South Asia</span>
+              <span className="text-sm font-medium tracking-wide uppercase">{t("hero.region")}</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-display font-bold text-white leading-[0.95]">
-              Discover<br />Sri Lanka
+              {t("hero.title").split(" ").length > 1 ? (
+                <>{t("hero.title").split(" ").slice(0, -2).join(" ")}<br />{t("hero.title").split(" ").slice(-2).join(" ")}</>
+              ) : t("hero.title")}
             </h1>
             <p className="text-lg text-white/85 max-w-lg leading-relaxed">
-              Ancient temples, pristine coastlines, and misty highlands — 
-              craft your perfect journey through the pearl of the Indian Ocean.
+              {t("hero.subtitle")}
             </p>
             <div className="flex gap-3 pt-2">
               <Button 
@@ -36,7 +40,7 @@ const HeroSection = () => {
                 className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-8"
                 onClick={() => document.getElementById('itinerary')?.scrollIntoView({ behavior: 'smooth' })}
               >
-                Plan Your Trip
+                {t("hero.planTrip")}
               </Button>
               <Button 
                 size="lg" 
@@ -44,7 +48,7 @@ const HeroSection = () => {
                 className="bg-white/10 backdrop-blur-sm border-white/25 text-white hover:bg-white/20"
                 onClick={scrollToContent}
               >
-                Explore
+                {t("hero.explore")}
               </Button>
             </div>
           </div>

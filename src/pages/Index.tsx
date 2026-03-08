@@ -59,16 +59,16 @@ const Index = () => {
                   <Clock className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">{t("support.hours")}</h3>
-                <p className="text-sm text-muted-foreground">Mon - Sat: 8AM - 8PM</p>
-                <p className="text-sm text-muted-foreground">Sun: 9AM - 5PM</p>
+                <p className="text-sm text-muted-foreground">{t("support.workingHours1")}</p>
+                <p className="text-sm text-muted-foreground">{t("support.workingHours2")}</p>
               </div>
 
               <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-shadow">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <MapPin className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-foreground mb-1">Office</h3>
-                <p className="text-sm text-muted-foreground">Colombo, Sri Lanka</p>
+                <h3 className="font-semibold text-foreground mb-1">{t("support.office")}</h3>
+                <p className="text-sm text-muted-foreground">{t("support.location")}</p>
               </div>
             </div>
           </div>
