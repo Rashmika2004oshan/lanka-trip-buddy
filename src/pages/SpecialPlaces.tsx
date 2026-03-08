@@ -115,12 +115,12 @@ const SpecialPlaces = () => {
       <main className="pt-24 pb-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-14 space-y-3">
-            <p className="text-sm font-medium text-primary tracking-wide uppercase">Destinations</p>
+            <p className="text-sm font-medium text-primary tracking-wide uppercase">{t("places.label")}</p>
             <h1 className="text-4xl md:text-5xl font-bold text-foreground">
-              {t("places.title")}
+              {t("specialPlaces.title")}
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              {t("places.subtitle")}
+              {t("specialPlaces.subtitle")}
             </p>
           </div>
 
@@ -131,15 +131,12 @@ const SpecialPlaces = () => {
                 <Card key={index} className="overflow-hidden border-border/50 hover:shadow-elevated transition-all duration-300">
                   <CardContent className="p-0">
                     <div className="flex flex-col md:flex-row">
-                      {/* Icon/Number Section */}
                       <div className="md:w-48 bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center p-8 md:p-6 shrink-0">
                         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
                           <Icon className="h-8 w-8 text-primary" />
                         </div>
                         <span className="text-xs font-bold text-primary/60 uppercase tracking-widest">#{index + 1}</span>
                       </div>
-
-                      {/* Content Section */}
                       <div className="flex-1 p-6 md:p-8">
                         <div className="flex items-start justify-between flex-wrap gap-2 mb-3">
                           <div>
@@ -153,11 +150,9 @@ const SpecialPlaces = () => {
                             {place.category}
                           </Badge>
                         </div>
-
                         <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                           {place.description}
                         </p>
-
                         <div className="flex flex-wrap gap-2">
                           {place.highlights.map((h, i) => (
                             <Badge key={i} variant="secondary" className="text-xs font-normal">

@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Train } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "@/lib/i18n";
 
 const TrainScheduleSection = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   return (
     <section id="train-schedule" className="py-20 px-4 bg-gradient-subtle">
@@ -12,11 +14,11 @@ const TrainScheduleSection = () => {
           <div className="inline-flex items-center gap-2 mb-4">
             <Train className="h-8 w-8 text-primary" />
             <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground">
-              Train Schedules
+              {t("nav.trains")}
             </h2>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Plan your railway journey across Sri Lanka with real-time train schedules
+            {t("trains.subtitle")}
           </p>
         </div>
 
@@ -27,7 +29,7 @@ const TrainScheduleSection = () => {
             onClick={() => navigate("/train-booking")}
           >
             <Train className="w-5 h-5" />
-            View Train Schedules & Book
+            {t("trains.searchTrains")}
           </Button>
         </div>
       </div>

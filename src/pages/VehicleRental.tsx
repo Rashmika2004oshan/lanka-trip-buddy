@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import BookingDialog from "@/components/BookingDialog";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useI18n } from "@/lib/i18n";
 import { Car, Plus } from "lucide-react";
 
 interface Vehicle {
@@ -20,6 +21,7 @@ interface Vehicle {
 const VehicleRental = () => {
   const navigate = useNavigate();
   const { isDriver } = useUserRole();
+  const { t } = useI18n();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
@@ -52,27 +54,27 @@ const VehicleRental = () => {
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Vehicle Rentals
+              {t("vehicles.title")}
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Choose from our fleet of well-maintained vehicles for your Sri Lankan adventure
+              {t("vehicles.subtitle")}
             </p>
             {isDriver && (
               <Button onClick={() => navigate("/driver-survey")} className="mt-4 gap-2">
                 <Plus className="h-4 w-4" />
-                List Your Vehicle
+                {t("vehicles.listVehicle")}
               </Button>
             )}
           </div>
 
           {loading ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading vehicles...</p>
+              <p className="text-muted-foreground">{t("vehicles.loading")}</p>
             </div>
           ) : vehicles.length === 0 ? (
             <div className="text-center py-12">
               <Car className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No vehicles available yet</p>
+              <p className="text-muted-foreground">{t("vehicles.noVehicles")}</p>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -93,11 +95,11 @@ const VehicleRental = () => {
                     <h3 className="text-xl font-semibold text-foreground mb-2">
                       {vehicle.model}
                     </h3>
-                    <p className="text-muted-foreground mb-1">Type: {vehicle.vehicle_type}</p>
-                    <p className="text-muted-foreground mb-4">Number: {vehicle.vehicle_number}</p>
+                    <p className="text-muted-foreground mb-1">{t("vehicles.type")}: {vehicle.vehicle_type}</p>
+                    <p className="text-muted-foreground mb-4">{t("vehicles.number")}: {vehicle.vehicle_number}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-primary">
-                        USD {vehicle.per_km_charge}/km
+                        USD {vehicle.per_km_charge}{t("vehicles.perKm")}
                       </span>
                       <Button 
                         onClick={() => {
@@ -105,7 +107,7 @@ const VehicleRental = () => {
                           setBookingDialogOpen(true);
                         }}
                       >
-                        Book Now
+                        {t("booking.bookNow")}
                       </Button>
                     </div>
                   </div>
