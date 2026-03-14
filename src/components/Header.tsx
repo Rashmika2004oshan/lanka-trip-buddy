@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { LogIn, LogOut, User, ShieldCheck, Menu, X, Globe } from "lucide-react";
+import { LogIn, LogOut, User, ShieldCheck, Menu, X, Globe, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n, LANGUAGE_OPTIONS } from "@/lib/i18n";
 import {
@@ -17,6 +17,21 @@ const Header = () => {
   const { isAdmin } = useUserRole();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t, language, setLanguage } = useI18n();
+
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    return saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDark]);
 
   const navLinks = [
     { href: "/", label: t("nav.home") },
@@ -59,6 +74,11 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Dark Mode Toggle */}
+          <Button variant="ghost" size="sm" onClick={() => setIsDark(!isDark)} className="gap-1.5 text-xs" title={t("darkMode")}>
+            {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </Button>
+
           {/* Language Switcher */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -120,7 +140,7 @@ const Header = () => {
             {isAdmin && (
               <a href="/admin" onClick={() => setMobileOpen(false)}
                 className="block px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              >Admin Dashboard</a>
+              >{t("nav.admin")}</a>
             )}
           </div>
         </div>
