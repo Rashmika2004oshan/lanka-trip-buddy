@@ -92,6 +92,12 @@ const ItineraryPlanner = () => {
   const [selectedHotels, setSelectedHotels] = useState<(Hotel | null)[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
+  const vehicleOptions = [
+    { value: "Car", label: "1-4 passengers" },
+    { value: "Van", label: "5-7 passengers" },
+    { value: "Bus", label: "8+ passengers" },
+  ];
+
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -612,8 +618,6 @@ const ItineraryPlanner = () => {
     }
   };
 
-  const availableVehicleTypes = getAvailableVehicleTypes();
-
   return (
     <section id="itinerary" className="py-20 px-4 bg-muted/30">
       <div className="container mx-auto max-w-4xl">
@@ -799,7 +803,7 @@ const ItineraryPlanner = () => {
                 </p>
               )}
               <div className="grid grid-cols-3 gap-4">
-                {availableVehicleTypes.map((type, index) => (
+                {vehicleOptions.map((type, index) => (
                   <div
                     key={type.value}
                     onClick={() => setVehicleType(type.value)}
@@ -810,7 +814,7 @@ const ItineraryPlanner = () => {
                     }`}
                   >
                     <p className="font-medium text-center">{type.value}</p>
-                    <p className="text-xs text-muted-foreground text-center">{type.label.split("(")[1]?.replace(")", "")}</p>
+                    <p className="text-xs text-muted-foreground text-center">{type.label}</p>
                   </div>
                 ))}
               </div>
