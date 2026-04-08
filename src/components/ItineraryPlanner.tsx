@@ -75,6 +75,9 @@ const ItineraryPlanner = () => {
     wildlife: false,
   });
   const [hotelCategory, setHotelCategory] = useState<string>("");
+  const [roomType, setRoomType] = useState<string>("");
+  const [numRooms, setNumRooms] = useState<string>("1");
+  const [boardType, setBoardType] = useState<string>("");
   const [vehicleType, setVehicleType] = useState<string>("");
   const [vehicleCategory, setVehicleCategory] = useState<string>("");
   const [itinerary, setItinerary] = useState<any[]>([]);
@@ -120,6 +123,32 @@ const ItineraryPlanner = () => {
       .map(([interest]) => interest.charAt(0).toUpperCase() + interest.slice(1));
     
     return destinations.filter(d => selectedInterests.includes(d.interest_category));
+  };
+
+  // Get display name for board type
+  const getBoardTypeDisplay = (boardType: string): string => {
+    switch (boardType) {
+      case "Bed": return "Bed Only";
+      case "Half Board": return "Half Board";
+      case "Full Board": return "Full Board";
+      default: return boardType;
+    }
+  };
+
+  // Mapping of destinations to their nearest accommodation cities
+  const destinationToAccommodationCity: Record<string, string> = {
+    "Horton Plains National Park": "Nuwara Eliya",
+    "Sigiriya Rock Fortress": "Sigiriya",
+    "Temple of the Sacred Tooth Relic": "Kandy",
+    "Ella and Nine Arches Bridge": "Ella",
+    "Sinharaja Forest Reserve": "Ratnapura",
+    "Udawalawe National Park": "Tissamaharama",
+    "Minneriya National Park": "Sigiriya",
+    "Galle Fort": "Galle",
+    "Mirissa Beach": "Mirissa",
+    "Unawatuna Beach": "Unawatuna",
+    "Arugam Bay": "Arugam Bay",
+    "Yala National Park": "Yala",
   };
 
   // Get available vehicle types based on guest count using database data
@@ -215,6 +244,21 @@ const ItineraryPlanner = () => {
       return;
     }
 
+    if (!roomType) {
+      toast.error("Please select a room type");
+      return;
+    }
+
+    if (!numRooms || parseInt(numRooms) < 1) {
+      toast.error("Please enter a valid number of rooms");
+      return;
+    }
+
+    if (!boardType) {
+      toast.error("Please select a board type");
+      return;
+    }
+
     if (!vehicleType) {
       toast.error("Please select a vehicle type");
       return;
@@ -250,7 +294,7 @@ const ItineraryPlanner = () => {
 
     const plan: any[] = [];
     const dayHotels: (Hotel | null)[] = [];
-    const avgKmPerDay = 100;
+    const avgKmPerDay = 150; // Fixed daily transportation distance
     let total = 0;
 
     for (let i = 0; i < numDays; i++) {
@@ -268,9 +312,9 @@ const ItineraryPlanner = () => {
         ? `Visit ${destination.name} - ${destination.description}`
         : `Explore ${interestCategory} attractions in Sri Lanka`;
       
-      // Find hotel matching destination city
-      const destinationCity = destination?.city || null;
-      let dayHotel = findHotelForCity(destinationCity, hotelCategory);
+      // Map destination to nearest accommodation city
+      const accommodationCity = destination ? destinationToAccommodationCity[destination.name] || destination.city : null;
+      let dayHotel = findHotelForCity(accommodationCity, hotelCategory);
       
       // If no hotel found for this city, use fallback
       if (!dayHotel) {
@@ -280,22 +324,44 @@ const ItineraryPlanner = () => {
       dayHotels.push(dayHotel);
       
       const dailyTransportCost = chosenVehicle.per_km_charge * avgKmPerDay;
-      const hotelCost = dayHotel.per_night_charge;
+      
+      // Calculate hotel cost with room type and board type multipliers
+      let roomMultiplier = 1;
+      switch (roomType) {
+        case "Single": roomMultiplier = 1; break;
+        case "Double": roomMultiplier = 1.5; break;
+        case "Family": roomMultiplier = 2.5; break;
+      }
+      
+      let boardMultiplier = 1;
+      switch (boardType) {
+        case "Bed": boardMultiplier = 1.2; break;
+        case "Half Board": boardMultiplier = 1.5; break;
+        case "Full Board": boardMultiplier = 1.8; break;
+      }
+      
+      const baseHotelCost = dayHotel.per_night_charge * roomMultiplier * boardMultiplier;
+      const hotelCost = baseHotelCost * parseInt(numRooms);
       
       plan.push({
         day: i + 1,
         activity,
         destination: destination?.name || null,
-        destinationCity,
+        destinationCity: destination?.city || null,
+        accommodationCity,
         interest: interestCategory,
         hotel: dayHotel.hotel_name,
         hotelCity: dayHotel.city,
         hotelCost,
         hotelCategory: dayHotel.category,
         hotelStars: dayHotel.stars,
+        roomType,
+        numRooms: parseInt(numRooms),
+        boardType,
         transport: chosenVehicle.model,
         transportType: chosenVehicle.vehicle_type,
         transportCost: dailyTransportCost,
+        dailyKm: avgKmPerDay,
         dailyTotal: hotelCost + dailyTransportCost
       });
       
@@ -371,13 +437,15 @@ const ItineraryPlanner = () => {
     doc.setTextColor(60, 60, 60);
     if (uniqueHotels.length === 1) {
       doc.text(`🏨 Hotel: ${uniqueHotels[0].hotel_name} — ${uniqueHotels[0].city} (${hotelCategory} category, ${uniqueHotels[0].stars}★)`, 15, 97);
-      doc.text(`   Price: $${uniqueHotels[0].per_night_charge}/night`, 15, 105);
+      doc.text(`   Room: ${roomType} × ${numRooms} rooms (${getBoardTypeDisplay(boardType)})`, 15, 105);
+      doc.text(`   Price: $${uniqueHotels[0].per_night_charge}/night`, 15, 113);
     } else {
       doc.text(`🏨 Hotels: ${uniqueHotels.length} hotels across destinations (${hotelCategory} category)`, 15, 97);
-      doc.text(`   Hotels change based on overnight destination city`, 15, 105);
+      doc.text(`   Room: ${roomType} × ${numRooms} rooms (${getBoardTypeDisplay(boardType)})`, 15, 105);
+      doc.text(`   Hotels change based on overnight destination city`, 15, 113);
     }
-    doc.text(`🚗 Vehicle: ${selectedVehicle?.model || "N/A"} — ${vehicleType}${vehicleCategory ? ` (${vehicleCategory} class)` : ""}`, 15, 114);
-    doc.text(`   Rate: $${selectedVehicle?.per_km_charge || 0}/km`, 15, 122);
+    doc.text(`🚗 Vehicle: ${selectedVehicle?.model || "N/A"} — ${vehicleType}${vehicleCategory ? ` (${vehicleCategory} class)` : ""}`, 15, 122);
+    doc.text(`   Rate: $${selectedVehicle?.per_km_charge || 0}/km × 150km/day`, 15, 130);
 
     doc.setDrawColor(200, 200, 200);
     doc.line(15, 128, pageWidth - 15, 128);
@@ -412,7 +480,11 @@ const ItineraryPlanner = () => {
 
       doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
-      doc.text(`📍 ${dayPlan.hotel} (${dayPlan.hotelCity})  |  🚗 ${dayPlan.transport}  |  💵 $${dayPlan.dailyTotal.toFixed(2)}/day`, 18, yPos);
+      doc.text(`🏠 ${dayPlan.roomType} × ${dayPlan.numRooms} (${getBoardTypeDisplay(dayPlan.boardType)})`, 18, yPos);
+      yPos += 6;
+      doc.text(`📍 ${dayPlan.destination} (${dayPlan.destinationCity})  |  🏨 ${dayPlan.hotel} (${dayPlan.hotelCity})`, 18, yPos);
+      yPos += 6;
+      doc.text(`🚗 ${dayPlan.transport} (${dayPlan.dailyKm}km)  |  💵 $${dayPlan.dailyTotal.toFixed(2)}/day`, 18, yPos);
       yPos += 10;
 
       if (index < itinerary.length - 1) {
@@ -428,6 +500,29 @@ const ItineraryPlanner = () => {
     doc.setFontSize(13);
     doc.setTextColor(255, 255, 255);
     doc.text(`Total Estimated Budget: USD $${totalCost.toFixed(2)}`, pageWidth / 2, yPos + 12, { align: "center" });
+
+    // Budget Alert if exceeded
+    if (totalCost > parseFloat(budget)) {
+      yPos += 20;
+      if (yPos > 260) { doc.addPage(); yPos = 20; }
+      doc.setFillColor(255, 243, 224);
+      doc.rect(15, yPos, pageWidth - 30, 30, "F");
+      doc.setDrawColor(255, 156, 0);
+      doc.setLineWidth(1.5);
+      doc.rect(15, yPos, pageWidth - 30, 30);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(217, 108, 0);
+      doc.text("⚠ Budget Alert", 20, yPos + 8);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(140, 70, 0);
+      const budgetDiff = totalCost - parseFloat(budget);
+      const alertText = `The estimated itinerary cost (USD $${totalCost.toFixed(2)}) exceeds your selected budget (USD $${parseFloat(budget).toFixed(2)}) by USD $${budgetDiff.toFixed(2)}.`;
+      const wrappedText = doc.splitTextToSize(alertText, pageWidth - 40);
+      doc.text(wrappedText, 20, yPos + 15);
+      yPos += 35;
+    }
 
     // Footer
     doc.setFontSize(8);
@@ -466,11 +561,17 @@ const ItineraryPlanner = () => {
             hotel: day.hotel,
             hotelCost: day.hotelCost,
             hotelCity: day.hotelCity,
+            destinationCity: day.destinationCity,
+            accommodationCity: day.accommodationCity,
             city: day.destinationCity || day.hotelCity,
             transport: day.transport,
             transportCost: day.transportCost,
+            dailyKm: day.dailyKm,
             dailyTotal: day.dailyTotal,
             interest: day.interest,
+            roomType: day.roomType,
+            numRooms: day.numRooms,
+            boardType: day.boardType,
           })),
           plan: itinerary,
           hotels: selectedHotels.filter(Boolean).map((h: any) => ({
@@ -490,6 +591,9 @@ const ItineraryPlanner = () => {
           } : null,
           totalCost,
           hotelCategory,
+          roomType,
+          numRooms: parseInt(numRooms),
+          boardType,
           vehicleType,
           vehicleCategory,
           guests: parseInt(guests),
@@ -513,28 +617,28 @@ const ItineraryPlanner = () => {
   return (
     <section id="itinerary" className="py-20 px-4 bg-muted/30">
       <div className="container mx-auto max-w-4xl">
-        <div className="text-center mb-12 space-y-4">
-          <div className="flex justify-center items-center gap-2">
-            <Sparkles className="w-8 h-8 text-secondary" />
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground">
+        <div className="text-center mb-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="flex justify-center items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-500 delay-200">
+            <Sparkles className="w-8 h-8 text-secondary animate-in fade-in slide-in-from-left-4 duration-300 delay-100" />
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground animate-in fade-in slide-in-from-bottom-6 duration-800 delay-300">
               Plan Your Perfect Trip
             </h2>
           </div>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-600 delay-500">
             Tell us your preferences and we'll create a personalized itinerary for your Sri Lankan adventure
           </p>
         </div>
 
-        <Card className="shadow-elevated border-border/50">
-          <CardHeader>
+        <Card className="shadow-elevated border-border/50 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-700 hover:shadow-xl transition-shadow duration-300">
+          <CardHeader className="animate-in fade-in slide-in-from-top-4 duration-600 delay-800">
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
+              <Calendar className="w-5 h-5 text-primary animate-in fade-in slide-in-from-left-2 duration-400 delay-900" />
               Customize Your Journey
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Basic Info */}
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-800 delay-1000">
               <div className="space-y-2">
                 <Label htmlFor="days">Number of Days *</Label>
                 <Input
@@ -545,7 +649,7 @@ const ItineraryPlanner = () => {
                   placeholder="How many days?"
                   value={days}
                   onChange={(e) => setDays(e.target.value)}
-                  className="border-border"
+                  className="border-border hover:border-primary/50 transition-colors duration-300 focus:scale-105 transition-transform"
                 />
               </div>
               
@@ -569,7 +673,7 @@ const ItineraryPlanner = () => {
                         setVehicleType("");
                       }
                     }}
-                    className="pl-10 border-border"
+                    className="pl-10 border-border hover:border-primary/50 transition-colors duration-300 focus:scale-105 transition-transform"
                   />
                 </div>
               </div>
@@ -583,17 +687,17 @@ const ItineraryPlanner = () => {
                   placeholder="Your budget"
                   value={budget}
                   onChange={(e) => setBudget(e.target.value)}
-                  className="border-border"
+                  className="border-border hover:border-primary/50 transition-colors duration-300 focus:scale-105 transition-transform"
                 />
               </div>
             </div>
 
             {/* Interests */}
-            <div className="space-y-3">
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-800 delay-1200">
               <Label>What interests you? *</Label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.keys(interests).map((interest) => (
-                  <div key={interest} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                {Object.keys(interests).map((interest, index) => (
+                  <div key={interest} className={`flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-${1300 + index * 100}`}>
                     <Checkbox
                       id={interest}
                       checked={interests[interest as keyof typeof interests]}
@@ -613,16 +717,16 @@ const ItineraryPlanner = () => {
             </div>
 
             {/* Hotel Selection */}
-            <div className="space-y-3">
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-800 delay-1400">
               <Label>Hotel Category *</Label>
               <div className="grid grid-cols-3 gap-4">
-                {["Low", "Middle", "Luxury"].map((category) => (
+                {["Low", "Middle", "Luxury"].map((category, index) => (
                   <div
                     key={category}
                     onClick={() => setHotelCategory(category)}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                    className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-${1500 + index * 100} ${
                       hotelCategory === category 
-                        ? "border-primary bg-primary/10" 
+                        ? "border-primary bg-primary/10 scale-105" 
                         : "hover:border-primary/50"
                     }`}
                   >
@@ -636,28 +740,72 @@ const ItineraryPlanner = () => {
                 ))}
               </div>
               {hotelCategory && (
-                <p className="text-sm text-muted-foreground">
+                <div className="grid md:grid-cols-3 gap-4 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-800 delay-1600">
+                  <div className="space-y-2">
+                    <Label>Room Type *</Label>
+                    <Select value={roomType} onValueChange={setRoomType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select room type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Single">Single Room</SelectItem>
+                        <SelectItem value="Double">Double Room</SelectItem>
+                        <SelectItem value="Family">Family Room</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="numRooms">Number of Rooms *</Label>
+                    <Input
+                      id="numRooms"
+                      type="number"
+                      min="1"
+                      placeholder="How many rooms?"
+                      value={numRooms}
+                      onChange={(e) => setNumRooms(e.target.value)}
+                      className="border-border hover:border-primary/50 transition-colors duration-300 focus:scale-105 transition-transform"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Board Type *</Label>
+                    <Select value={boardType} onValueChange={setBoardType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select board type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Bed">Bed Only</SelectItem>
+                        <SelectItem value="Half Board">Half Board</SelectItem>
+                        <SelectItem value="Full Board">Full Board</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+              {hotelCategory && (
+                <p className="text-sm text-muted-foreground animate-in fade-in slide-in-from-bottom-1 duration-500 delay-1700">
                   {getFilteredHotels().length} {hotelCategory.toLowerCase()} hotel(s) available
                 </p>
               )}
             </div>
 
             {/* Vehicle Selection */}
-            <div className="space-y-3">
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-800 delay-1700">
               <Label>Vehicle Type *</Label>
               {parseInt(guests) > 4 && (
-                <p className="text-sm text-secondary-foreground bg-secondary/20 px-2 py-1 rounded">
+                <p className="text-sm text-secondary-foreground bg-secondary/20 px-2 py-1 rounded animate-in fade-in slide-in-from-left-2 duration-500 delay-1800">
                   ⚠️ For {guests} guests, {parseInt(guests) > 7 ? "only Bus is" : "Van or Bus are"} recommended
                 </p>
               )}
               <div className="grid grid-cols-3 gap-4">
-                {availableVehicleTypes.map((type) => (
+                {availableVehicleTypes.map((type, index) => (
                   <div
                     key={type.value}
                     onClick={() => setVehicleType(type.value)}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                    className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-${1900 + index * 100} ${
                       vehicleType === type.value 
-                        ? "border-primary bg-primary/10" 
+                        ? "border-primary bg-primary/10 scale-105" 
                         : "hover:border-primary/50"
                     }`}
                   >
@@ -668,16 +816,16 @@ const ItineraryPlanner = () => {
               </div>
 
               {vehicleType && (
-                <div className="space-y-2">
+                <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-2000">
                   <Label>Vehicle Class</Label>
                   <div className="grid grid-cols-2 gap-4">
-                    {["Mid", "Luxury"].map((category) => (
+                    {["Mid", "Luxury"].map((category, index) => (
                       <div
                         key={category}
                         onClick={() => setVehicleCategory(category)}
-                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                        className={`p-3 border rounded-lg cursor-pointer transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-${2100 + index * 100} ${
                           vehicleCategory === category 
-                            ? "border-primary bg-primary/10" 
+                            ? "border-primary bg-primary/10 scale-105" 
                             : "hover:border-primary/50"
                         }`}
                       >
@@ -685,7 +833,7 @@ const ItineraryPlanner = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground animate-in fade-in slide-in-from-bottom-1 duration-500 delay-2200">
                     {getFilteredVehicles().length} {vehicleType.toLowerCase()}(s) available
                   </p>
                 </div>
@@ -694,7 +842,7 @@ const ItineraryPlanner = () => {
 
             <Button 
               onClick={generateItinerary} 
-              className="w-full bg-gradient-tropical hover:opacity-90 text-white"
+              className="w-full bg-gradient-tropical hover:opacity-90 text-white transition-all duration-300 hover:scale-105 hover:shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-600 delay-2300"
               size="lg"
             >
               <Sparkles className="w-4 h-4 mr-2" />
@@ -702,41 +850,49 @@ const ItineraryPlanner = () => {
             </Button>
 
             {itinerary.length > 0 && (
-              <div className="mt-8 space-y-4">
-                <div className="p-6 bg-gradient-hero rounded-xl border border-border/30">
-                  <h3 className="text-xl font-semibold text-foreground mb-4">Your Personalized Itinerary</h3>
+              <div className="mt-8 space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-2400">
+                <div className="p-6 bg-gradient-hero rounded-xl border border-border/30 animate-in fade-in slide-in-from-bottom-4 duration-800 delay-2500 hover:shadow-xl transition-shadow duration-300">
+                  <h3 className="text-xl font-semibold text-foreground mb-4 animate-in fade-in slide-in-from-left-4 duration-600 delay-2600">Your Personalized Itinerary</h3>
                   
                   {/* Summary */}
-                   <div className="grid md:grid-cols-2 gap-4 mb-6 p-4 bg-background/50 rounded-lg">
-                    <div>
+                   <div className="grid md:grid-cols-2 gap-4 mb-6 p-4 bg-background/50 rounded-lg animate-in fade-in slide-in-from-bottom-2 duration-700 delay-2700 hover:bg-background/70 transition-colors duration-300">
+                    <div className="animate-in fade-in slide-in-from-left-2 duration-500 delay-2800">
                       <p className="text-sm text-muted-foreground">Accommodation</p>
                       <p className="font-medium">
                         {[...new Set(selectedHotels.filter(Boolean).map(h => h!.hotel_name))].join(", ")} ({hotelCategory})
                       </p>
-                      <p className="text-sm text-primary">Hotels matched to destination cities</p>
+                      <p className="text-sm text-primary">
+                        Hotels matched to nearest accommodation cities
+                      </p>
                     </div>
-                    <div>
+                    <div className="animate-in fade-in slide-in-from-right-2 duration-500 delay-2900">
                       <p className="text-sm text-muted-foreground">Transport</p>
                       <p className="font-medium">{selectedVehicle?.model} ({vehicleType})</p>
-                      <p className="text-sm text-primary">${selectedVehicle?.per_km_charge}/km</p>
+                      <p className="text-sm text-primary">${selectedVehicle?.per_km_charge}/km × 150km/day</p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     {itinerary.map((dayPlan, index) => (
-                      <Card key={index} className="p-4 bg-background/50">
+                      <Card key={index} className={`p-4 bg-background/50 animate-in fade-in slide-in-from-bottom-4 duration-800 delay-${3000 + index * 200} hover:shadow-lg transition-all duration-300 hover:scale-[1.02]`}>
                         <div className="flex gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 font-bold">
+                          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 font-bold animate-in fade-in slide-in-from-left-2 duration-500 delay-${3100 + index * 200}">
                             {dayPlan.day}
                           </div>
-                          <div className="flex-1 space-y-2">
+                          <div className="flex-1 space-y-2 animate-in fade-in slide-in-from-right-2 duration-600 delay-${3200 + index * 200}">
                             <p className="font-semibold text-foreground">{dayPlan.activity}</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                              <div>
+                                <span className="font-medium">📍 Destination:</span> {dayPlan.destination} ({dayPlan.destinationCity})
+                              </div>
                               <div>
                                 <span className="font-medium">🏨 Hotel:</span> {dayPlan.hotel} ({dayPlan.hotelCity})
                               </div>
                               <div>
-                                <span className="font-medium">🚗 Transport:</span> {dayPlan.transport}
+                                <span className="font-medium">🚗 Transport:</span> {dayPlan.transport} ({dayPlan.dailyKm}km)
+                              </div>
+                              <div>
+                                <span className="font-medium">🏠 Room:</span> {dayPlan.roomType} × {dayPlan.numRooms} ({getBoardTypeDisplay(dayPlan.boardType)})
                               </div>
                               <div>
                                 <span className="font-medium">💵 Accommodation:</span> ${dayPlan.hotelCost.toFixed(2)}
@@ -745,7 +901,7 @@ const ItineraryPlanner = () => {
                                 <span className="font-medium">💵 Transport:</span> ${dayPlan.transportCost.toFixed(2)}
                               </div>
                             </div>
-                            <div className="text-sm font-semibold text-primary">
+                            <div className="text-sm font-semibold text-primary animate-in fade-in slide-in-from-bottom-1 duration-400 delay-${3300 + index * 200}">
                               Day Total: ${dayPlan.dailyTotal.toFixed(2)}
                             </div>
                           </div>
@@ -754,22 +910,40 @@ const ItineraryPlanner = () => {
                     ))}
                   </div>
                   
-                  <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
+                  <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-3400 hover:bg-primary/20 transition-colors duration-300">
                     <div className="flex items-center justify-between">
-                      <span className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <span className="text-lg font-semibold text-foreground flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-500 delay-3500">
                         <DollarSign className="h-5 w-5" />
                         Total Estimated Cost:
                       </span>
-                      <span className="text-2xl font-bold text-primary">${totalCost.toFixed(2)}</span>
+                      <span className="text-2xl font-bold text-primary animate-in fade-in slide-in-from-right-2 duration-600 delay-3600">${totalCost.toFixed(2)}</span>
                     </div>
                   </div>
+
+                  {totalCost > parseFloat(budget) && (
+                    <div className="mt-4 p-4 bg-orange-50 border border-orange-300 rounded-lg animate-in fade-in slide-in-from-bottom-4 duration-700 delay-3500">
+                      <div className="flex gap-3">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-orange-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-orange-800">Budget Alert</p>
+                          <p className="text-sm text-orange-700 mt-1">
+                            The estimated itinerary cost exceeds your selected budget. Actual cost: <span className="font-bold">${totalCost.toFixed(2)}</span> vs Budget: <span className="font-bold">${parseFloat(budget).toFixed(2)}</span> (Difference: <span className="font-bold">+${(totalCost - parseFloat(budget)).toFixed(2)}</span>)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-4">
+                <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-600 delay-3700">
                   <Button
                     onClick={downloadPDF}
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 hover:scale-105 transition-transform duration-300"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
@@ -778,7 +952,7 @@ const ItineraryPlanner = () => {
                   {user ? (
                     <Button
                       onClick={() => setSaveDialogOpen(true)}
-                      className="flex-1 bg-gradient-tropical text-white"
+                      className="flex-1 bg-gradient-tropical text-white hover:scale-105 transition-all duration-300 hover:shadow-lg"
                     >
                       <Save className="w-4 h-4 mr-2" />
                       Save Itinerary
@@ -787,7 +961,7 @@ const ItineraryPlanner = () => {
                     <Button
                       onClick={() => navigate("/auth")}
                       variant="outline"
-                      className="flex-1"
+                      className="flex-1 hover:scale-105 transition-transform duration-300"
                     >
                       <LogIn className="w-4 h-4 mr-2" />
                       Sign in to save

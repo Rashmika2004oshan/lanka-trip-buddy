@@ -25,37 +25,37 @@ const Index = () => {
         {/* Technical Support Section */}
         <section id="support" className="py-16 px-4 bg-muted/30">
           <div className="container mx-auto max-w-4xl">
-            <div className="text-center mb-10">
-              <div className="flex justify-center items-center gap-2 mb-3">
-                <Headphones className="w-7 h-7 text-primary" />
-                <h2 className="text-3xl font-bold text-foreground">{t("support.title")}</h2>
+            <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="flex justify-center items-center gap-2 mb-3 animate-in fade-in slide-in-from-top-2 duration-500 delay-200">
+                <Headphones className="w-7 h-7 text-primary animate-in fade-in slide-in-from-left-4 duration-300 delay-100" />
+                <h2 className="text-3xl font-bold text-foreground animate-in fade-in slide-in-from-bottom-6 duration-800 delay-300">{t("support.title")}</h2>
               </div>
-              <p className="text-muted-foreground">{t("support.description")}</p>
+              <p className="text-muted-foreground animate-in fade-in slide-in-from-bottom-2 duration-600 delay-500">{t("support.description")}</p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-all duration-300 hover:scale-105 hover:shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-700">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors duration-300">
                   <Mail className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">{t("support.email")}</h3>
-                <a href="mailto:oshancshan@gmail.com" className="text-sm text-primary hover:underline">
+                <a href="mailto:oshancshan@gmail.com" className="text-sm text-primary hover:underline hover:text-primary/80 transition-colors duration-300">
                   oshancshan@gmail.com
                 </a>
               </div>
 
-              <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-all duration-300 hover:scale-105 hover:shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-800">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors duration-300">
                   <Phone className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">{t("support.phone")}</h3>
-                <a href="tel:+94771234567" className="text-sm text-primary hover:underline">
+                <a href="tel:+94771234567" className="text-sm text-primary hover:underline hover:text-primary/80 transition-colors duration-300">
                   +94 77 123 4567
                 </a>
               </div>
 
-              <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-all duration-300 hover:scale-105 hover:shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-900">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors duration-300">
                   <Clock className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">{t("support.hours")}</h3>
@@ -63,8 +63,8 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground">{t("support.workingHours2")}</p>
               </div>
 
-              <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <div className="bg-card border border-border/50 rounded-xl p-6 text-center hover:shadow-card transition-all duration-300 hover:scale-105 hover:shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-1000">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors duration-300">
                   <MapPin className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">{t("support.office")}</h3>

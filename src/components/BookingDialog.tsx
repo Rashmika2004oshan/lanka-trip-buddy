@@ -41,6 +41,7 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
   const [checkOutDate, setCheckOutDate] = useState<Date>();
   const [numberOfPersons, setNumberOfPersons] = useState("1");
   const [roomType, setRoomType] = useState("");
+  const [boardType, setBoardType] = useState("");
 
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
@@ -51,7 +52,28 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
     } else {
       if (!checkInDate || !checkOutDate) return 0;
       const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-      return nights * parseFloat(itemData.per_night_charge);
+      let baseCharge = parseFloat(itemData.per_night_charge);
+      
+      // Apply extra charges for room types only for Full Board
+      if (boardType === "Full Board") {
+        if (roomType === "Double") {
+          baseCharge *= 1.2; // 20% extra
+        } else if (roomType === "Family") {
+          baseCharge *= 1.4; // 40% extra
+        }
+        // Single and Suite remain at normal charge
+      }
+      
+      // Apply board type surcharges for all hotels
+      if (boardType === "Bed Only") {
+        baseCharge *= 1.05; // 5% extra
+      } else if (boardType === "Half Board") {
+        baseCharge *= 1.08; // 8% extra
+      } else if (boardType === "Full Board") {
+        baseCharge *= 1.12; // 12% extra
+      }
+      
+      return nights * baseCharge;
     }
   };
 
@@ -126,7 +148,7 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
       return;
     }
 
-    if (bookingType === "accommodation" && (!checkInDate || !checkOutDate || !roomType)) {
+    if (bookingType === "accommodation" && (!checkInDate || !checkOutDate || !roomType || !boardType)) {
       toast.error("Please fill in all accommodation details");
       return;
     }
@@ -166,6 +188,7 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
           number_of_persons: parseInt(numberOfPersons),
           number_of_nights: calculateNights(),
           room_type: roomType,
+          board_type: boardType,
         }),
       };
 
@@ -189,20 +212,26 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
         numberOfNights: calculateNights(),
         numberOfPersons,
         roomType,
+        boardType,
         subtotal: subtotal.toFixed(2),
         serviceCharge: serviceCharge.toFixed(2),
         ownerEmail: itemData.owner_email,
       };
 
-      await supabase.functions.invoke("send-booking-notification", {
-        body: {
-          bookingType,
-          bookingDetails,
-          customerEmail: user.email,
-          customerName: profile?.full_name || "Guest",
-          totalAmount: totalAmount.toFixed(2),
-        },
-      });
+const { data: { session } } = await supabase.auth.getSession();
+
+await supabase.functions.invoke("send-booking-notification", {
+  body: {
+    bookingType,
+    bookingDetails,
+    customerEmail: user.email,
+    customerName: profile?.full_name || "Guest",
+    totalAmount: totalAmount.toFixed(2),
+  },
+  headers: {
+    Authorization: `Bearer ${session?.access_token}`,
+  },
+});
 
       toast.success("Booking confirmed! Admin has been notified.");
       onOpenChange(false);
@@ -321,21 +350,41 @@ const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDia
                   <Input id="persons" type="number" min="1" value={numberOfPersons} onChange={(e) => setNumberOfPersons(e.target.value)} />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="boardType">Board Type *</Label>
+                  <Select value={boardType} onValueChange={setBoardType}>
+                    <SelectTrigger><SelectValue placeholder="Select board type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Full Board">Full Board</SelectItem>
+                      <SelectItem value="Half Board">Half Board</SelectItem>
+                      <SelectItem value="Bed Only">Bed Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="roomType">Room Type *</Label>
                   <Select value={roomType} onValueChange={setRoomType}>
                     <SelectTrigger><SelectValue placeholder="Select room type" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Single">Single</SelectItem>
                       <SelectItem value="Double">Double</SelectItem>
-                      <SelectItem value="Suite">Suite</SelectItem>
                       <SelectItem value="Family">Family</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  {/* Empty div for grid balance */}
+                </div>
               </div>
               {checkInDate && checkOutDate && (
                 <p className="text-sm text-muted-foreground">
-                  Number of nights: {calculateNights()} | Rate: USD {itemData.per_night_charge}/night
+                  Number of nights: {calculateNights()} | Base rate: USD {itemData.per_night_charge}/night
+                  {boardType === "Full Board" && roomType === "Double" && " (+20% for Double room)"}
+                  {boardType === "Full Board" && roomType === "Family" && " (+40% for Family room)"}
+                  {boardType === "Bed Only" && " (+5% for Bed Only)"}
+                  {boardType === "Half Board" && " (+8% for Half Board)"}
+                  {boardType === "Full Board" && " (+12% for Full Board)"}
                 </p>
               )}
             </>

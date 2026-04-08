@@ -1,15 +1,27 @@
 import Header from "@/components/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Mountain, Waves, TreePalm, Landmark, Gem } from "lucide-react";
+import { MapPin, Gem } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+
+// Import special places images
+import sigiriyaImg from "@/assets/special places assets/sigiriya.jpg";
+import kandyTempleImg from "@/assets/special places assets/kandy-temple.jpg";
+import galleFortImg from "@/assets/special places assets/galle-fort.jpg";
+import ellaImg from "@/assets/special places assets/ella.jpg";
+import yalaParkImg from "@/assets/special places assets/yala-park.jpg";
+import adamsPeakImg from "@/assets/special places assets/adams-peak.jpg";
+import mirissaImg from "@/assets/special places assets/Mirissa.jpg";
+import nuwaraeliyaImg from "@/assets/special places assets/nuwaraeliya.webp";
+import anuradhapuraImg from "@/assets/special places assets/Anuradhapura.jpeg";
+import nilaveliImg from "@/assets/special places assets/nilaveli beach.jpg";
 
 const specialPlaces = [
   {
     name: "Sigiriya Rock Fortress",
     city: "Dambulla",
     category: "UNESCO Heritage",
-    icon: Landmark,
+    image: sigiriyaImg,
     description:
       "An ancient rock fortress rising 200 meters above the surrounding plains. Built by King Kashyapa in the 5th century, it features spectacular frescoes, mirror walls, and the iconic Lion's Paw entrance. The summit offers breathtaking 360-degree views of the lush Sri Lankan countryside.",
     highlights: ["Lion's Paw Gate", "Ancient Frescoes", "Water Gardens", "Summit Palace Ruins"],
@@ -18,7 +30,7 @@ const specialPlaces = [
     name: "Temple of the Sacred Tooth Relic",
     city: "Kandy",
     category: "Cultural",
-    icon: Landmark,
+    image: kandyTempleImg,
     description:
       "Sri Lanka's most sacred Buddhist temple, housing a tooth relic of Lord Buddha. Located within the royal palace complex by Kandy Lake, the temple hosts daily puja ceremonies and the grand annual Esala Perahera festival with decorated elephants.",
     highlights: ["Daily Puja Ceremonies", "Esala Perahera Festival", "Royal Palace Complex", "Kandy Lake"],
@@ -27,7 +39,7 @@ const specialPlaces = [
     name: "Galle Fort",
     city: "Galle",
     category: "UNESCO Heritage",
-    icon: Landmark,
+    image: galleFortImg,
     description:
       "A stunning 16th-century Dutch colonial fort perched on a rocky headland. Wander cobblestone streets lined with boutique shops, art galleries, and cafés. The iconic lighthouse and rampart walks offer spectacular ocean sunsets.",
     highlights: ["Dutch Colonial Architecture", "Lighthouse", "Rampart Walks", "Boutique Shopping"],
@@ -36,7 +48,7 @@ const specialPlaces = [
     name: "Ella & Nine Arches Bridge",
     city: "Ella",
     category: "Scenic",
-    icon: Mountain,
+    image: ellaImg,
     description:
       "A charming hill-country town surrounded by tea plantations and misty mountains. The iconic Nine Arches Bridge is an engineering marvel built entirely of stone and brick. Hike Little Adam's Peak for panoramic valley views.",
     highlights: ["Nine Arches Bridge", "Little Adam's Peak", "Tea Plantations", "Ravana Falls"],
@@ -45,7 +57,7 @@ const specialPlaces = [
     name: "Yala National Park",
     city: "Tissamaharama",
     category: "Wildlife",
-    icon: TreePalm,
+    image: yalaParkImg,
     description:
       "Sri Lanka's premier wildlife sanctuary and home to the world's highest density of leopards. The park also shelters elephants, sloth bears, crocodiles, and over 200 bird species across diverse ecosystems of jungle, lagoons, and coastline.",
     highlights: ["Leopard Safaris", "Elephant Herds", "Bird Watching", "Coastal Lagoons"],
@@ -54,7 +66,7 @@ const specialPlaces = [
     name: "Adam's Peak (Sri Pada)",
     city: "Ratnapura",
     category: "Pilgrimage",
-    icon: Mountain,
+    image: adamsPeakImg,
     description:
       "A sacred 2,243m mountain revered by Buddhists, Hindus, Muslims, and Christians alike. The sunrise pilgrimage involves climbing 5,500 steps through cloud forests. At the summit sits the Sacred Footprint, attracting thousands of devotees annually.",
     highlights: ["Sunrise Trek", "Sacred Footprint", "5,500 Steps", "Cloud Forest"],
@@ -63,7 +75,7 @@ const specialPlaces = [
     name: "Mirissa Beach",
     city: "Mirissa",
     category: "Beach",
-    icon: Waves,
+    image: mirissaImg,
     description:
       "A crescent-shaped tropical beach famous for whale watching between November and April. Spot blue whales and dolphins on morning boat tours, then relax on golden sands, surf gentle waves, or enjoy fresh seafood at beachfront restaurants.",
     highlights: ["Whale Watching", "Surfing", "Coconut Tree Hill", "Fresh Seafood"],
@@ -72,7 +84,7 @@ const specialPlaces = [
     name: "Nuwara Eliya",
     city: "Nuwara Eliya",
     category: "Hill Country",
-    icon: Mountain,
+    image: nuwaraeliyaImg,
     description:
       "Known as 'Little England' for its colonial-era bungalows and cool climate at 1,868m elevation. Visit sprawling tea estates, the stunning Gregory Lake, Hakgala Botanical Gardens, and enjoy strawberry farms amidst misty green hills.",
     highlights: ["Tea Estate Tours", "Gregory Lake", "Hakgala Gardens", "Strawberry Farms"],
@@ -81,7 +93,7 @@ const specialPlaces = [
     name: "Anuradhapura Ancient City",
     city: "Anuradhapura",
     category: "UNESCO Heritage",
-    icon: Landmark,
+    image: anuradhapuraImg,
     description:
       "One of the oldest continuously inhabited cities in the world, serving as Sri Lanka's capital for over 1,300 years. Explore massive dagobas, ancient monasteries, sacred Bo trees, and intricate stone carvings spanning millennia of Buddhist civilization.",
     highlights: ["Ruwanwelisaya Stupa", "Sri Maha Bodhi Tree", "Jetavanaramaya", "Isurumuniya"],
@@ -90,7 +102,7 @@ const specialPlaces = [
     name: "Trincomalee & Nilaveli Beach",
     city: "Trincomalee",
     category: "Beach & Heritage",
-    icon: Waves,
+    image: nilaveliImg,
     description:
       "Home to one of the world's finest natural harbors and pristine beaches. Visit the ancient Koneswaram Temple perched on Swami Rock, snorkel at Pigeon Island, and relax on the powder-white sands of Nilaveli. Hot springs at Kanniya add a unique touch.",
     highlights: ["Koneswaram Temple", "Pigeon Island Snorkeling", "Nilaveli Beach", "Kanniya Hot Springs"],
@@ -126,16 +138,16 @@ const SpecialPlaces = () => {
 
           <div className="grid gap-6">
             {specialPlaces.map((place, index) => {
-              const Icon = place.icon;
               return (
                 <Card key={index} className="overflow-hidden border-border/50 hover:shadow-elevated transition-all duration-300">
                   <CardContent className="p-0">
                     <div className="flex flex-col md:flex-row">
-                      <div className="md:w-48 bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center p-8 md:p-6 shrink-0">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
-                          <Icon className="h-8 w-8 text-primary" />
-                        </div>
-                        <span className="text-xs font-bold text-primary/60 uppercase tracking-widest">#{index + 1}</span>
+                      <div 
+                        className="md:w-48 bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center p-8 md:p-6 shrink-0 relative overflow-hidden"
+                        style={{ backgroundImage: `url(${place.image})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+                      >
+                        <div className="absolute inset-0 bg-black/30"></div>
+                        <span className="text-xs font-bold text-white uppercase tracking-widest relative z-10">#{index + 1}</span>
                       </div>
                       <div className="flex-1 p-6 md:p-8">
                         <div className="flex items-start justify-between flex-wrap gap-2 mb-3">

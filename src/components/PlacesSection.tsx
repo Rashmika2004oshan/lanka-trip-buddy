@@ -20,12 +20,12 @@ const PlacesSection = () => {
   return (
     <section id="places" className="py-24 px-6 bg-muted/30">
       <div className="container mx-auto max-w-6xl">
-        <div className="text-center mb-14 space-y-3">
-          <p className="text-sm font-medium text-primary tracking-wide uppercase">{t("places.label")}</p>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+        <div className="text-center mb-14 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <p className="text-sm font-medium text-primary tracking-wide uppercase animate-in fade-in slide-in-from-top-2 duration-500 delay-200">{t("places.label")}</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground animate-in fade-in slide-in-from-bottom-6 duration-800 delay-300">
             {t("places.title")}
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-600 delay-500">
             {t("places.subtitle")}
           </p>
         </div>
@@ -34,7 +34,7 @@ const PlacesSection = () => {
           {places.map((place, index) => (
             <Card 
               key={index} 
-              className="overflow-hidden shadow-card hover:shadow-elevated transition-all duration-300 border-border/40 group cursor-default"
+              className={`overflow-hidden shadow-card hover:shadow-elevated transition-all duration-300 border-border/40 group cursor-default hover:scale-105 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-${(index + 1) * 200}`}
             >
               <div className="relative h-52 overflow-hidden">
                 <img 
@@ -43,10 +43,10 @@ const PlacesSection = () => {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/10 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-5">
-                  <h3 className="text-lg font-bold text-white mb-1">{t(place.nameKey)}</h3>
-                  <p className="text-white/80 text-xs leading-relaxed line-clamp-2">{t(place.descKey)}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/10 to-transparent group-hover:from-foreground/80 transition-all duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-5 animate-in fade-in slide-in-from-bottom-4 duration-600 delay-${(index + 1) * 300}">
+                  <h3 className="text-lg font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors duration-300">{t(place.nameKey)}</h3>
+                  <p className="text-white/80 text-xs leading-relaxed line-clamp-2 group-hover:text-white/90 transition-colors duration-300">{t(place.descKey)}</p>
                 </div>
               </div>
             </Card>

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  reasoning_details?: unknown;
 }
 
 const Chatbot = () => {
@@ -38,22 +39,29 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
+      const openrouterKey = import.meta.env.VITE_OPENROUTER_API_KEY?.trim() || "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";
+
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": "Bearer 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",
+          "Authorization": `Bearer ${openrouterKey}`,
           "Content-Type": "application/json",
           "HTTP-Referer": window.location.href,
           "X-Title": "Sri Lanka Tourism AI Guide",
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          model: "nvidia/nemotron-3-super-120b-a12b:free",
+          reasoning: { enabled: true },
           messages: [
             {
               role: "system",
               content: "You are a knowledgeable Sri Lanka travel guide. Provide helpful, accurate information about Sri Lankan destinations, accommodations, transportation, culture, food, and travel tips. Be friendly and concise.",
             },
-            ...messages.map(m => ({ role: m.role, content: m.content })),
+            ...messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+              ...(m.reasoning_details ? { reasoning_details: m.reasoning_details } : {}),
+            })),
             { role: "user", content: input },
           ],
         }),
@@ -64,9 +72,11 @@ const Chatbot = () => {
       }
 
       const data = await response.json();
+      const aiMessage = data.choices?.[0]?.message;
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.choices[0].message.content,
+        content: aiMessage?.content || "Sorry, I couldn't generate an answer.",
+        reasoning_details: aiMessage?.reasoning_details,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);

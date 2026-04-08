@@ -123,6 +123,7 @@ const handler = async (req: Request): Promise<Response> => {
         <p><strong>Number of Nights:</strong> ${escapeHtml(String(bookingDetails.numberOfNights))}</p>
         <p><strong>Number of Persons:</strong> ${escapeHtml(String(bookingDetails.numberOfPersons))}</p>
         <p><strong>Room Type:</strong> ${escapeHtml(bookingDetails.roomType)}</p>
+        <p><strong>Board Type:</strong> ${escapeHtml(bookingDetails.boardType)}</p>
       `;
       ownerEmail = bookingDetails.ownerEmail || null;
     }

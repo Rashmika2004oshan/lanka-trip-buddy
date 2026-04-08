@@ -32,6 +32,7 @@ interface Booking {
   number_of_persons?: number;
   number_of_nights?: number;
   room_type?: string;
+  board_type?: string;
   hotels?: { hotel_name: string; city: string; stars: number };
 }
 
@@ -135,6 +136,7 @@ const MyBookings = () => {
                       <>
                         <div className="flex items-center gap-2 text-sm"><Calendar className="h-4 w-4 text-muted-foreground" /><span className="text-muted-foreground">{t("myBookings.checkInOut")}:</span><span className="font-medium">{format(new Date(booking.check_in_date!), "MMM dd")} - {format(new Date(booking.check_out_date!), "MMM dd, yyyy")}</span></div>
                         <div className="flex items-center gap-2 text-sm"><Hotel className="h-4 w-4 text-muted-foreground" /><span className="text-muted-foreground">{t("myBookings.roomType")}:</span><span className="font-medium">{booking.room_type}</span></div>
+                        <div className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Board Type:</span><span className="font-medium">{booking.board_type}</span></div>
                         <div className="flex items-center gap-2 text-sm"><User className="h-4 w-4 text-muted-foreground" /><span className="text-muted-foreground">{t("myBookings.guests")}:</span><span className="font-medium">{booking.number_of_persons} {t("common.person")}</span></div>
                         <div className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">{t("myBookings.nights")}:</span><span className="font-medium">{booking.number_of_nights}</span></div>
                         {booking.hotels && <div className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">{t("myBookings.location")}:</span><span className="font-medium">{booking.hotels.city}</span></div>}

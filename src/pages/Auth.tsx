@@ -15,10 +15,12 @@ const Auth = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserType>("traveller");
   const [formData, setFormData] = useState({ email: "", password: "", fullName: "" });
+  const [resetEmail, setResetEmail] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +53,28 @@ const Auth = () => {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+      if (error) throw error;
+      toast.success("Password reset email sent! Check your inbox.");
+      setResetEmail("");
+      setIsForgotPassword(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send reset email");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const roleOptions = [
     { value: "traveller" as UserType, label: t("profile.traveller"), icon: Plane, desc: t("auth.planTripsBook") },
     { value: "driver" as UserType, label: t("profile.vehicleOwner"), icon: Car, desc: t("auth.listVehicles") },
@@ -62,15 +86,53 @@ const Auth = () => {
       <Card className="w-full max-w-md shadow-elevated">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-display text-center">
-            {isLogin ? t("auth.welcomeBack") : t("auth.createAccount")}
+            {isForgotPassword 
+              ? "Reset Password" 
+              : isLogin ? t("auth.welcomeBack") : t("auth.createAccount")}
           </CardTitle>
           <CardDescription className="text-center">
-            {isLogin ? t("auth.signInDesc") : t("auth.signUpDesc")}
+            {isForgotPassword 
+              ? "Enter your email to receive a password reset link"
+              : isLogin ? t("auth.signInDesc") : t("auth.signUpDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+          <form onSubmit={isForgotPassword ? handlePasswordReset : handleSubmit} className="space-y-4">
+            {isForgotPassword ? (
+              // Forgot Password Form
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="resetEmail">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="resetEmail" 
+                      type="email" 
+                      placeholder="you@example.com" 
+                      className="pl-10" 
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Sending..." : "Send Reset Link"}
+                </Button>
+                <div className="text-center text-sm">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsForgotPassword(false)} 
+                    className="text-primary hover:underline"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Login/Signup Form
+              <>
+              {!isLogin && (
               <>
                 <div className="space-y-2">
                   <Label>{t("auth.iAmA")}</Label>
@@ -119,6 +181,17 @@ const Auth = () => {
                 </button>
               </div>
             </div>
+            {isLogin && (
+              <div className="text-right">
+                <button 
+                  type="button" 
+                  onClick={() => setIsForgotPassword(true)} 
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? t("auth.loading") : isLogin ? t("auth.signIn") : t("auth.signUp")}
             </Button>
@@ -130,6 +203,8 @@ const Auth = () => {
                 {isLogin ? t("auth.noAccount") : t("auth.haveAccount")}
               </button>
             </div>
+              </>
+            )}
           </form>
         </CardContent>
       </Card>

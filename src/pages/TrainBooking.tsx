@@ -15,7 +15,12 @@ import { useI18n } from "@/lib/i18n";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-
+// Import train station images
+import colomboImg from "@/assets/train assests/colombo.jpg";
+import kandyImg from "@/assets/train assests/kandy.jpg";
+import hattonImg from "@/assets/train assests/hatton.jpg";
+import nanuoyaImg from "@/assets/train assests/nanuoya.jpeg";
+import ellaImg from "@/assets/train assests/ella.jpg";
 const STATIONS = ["Colombo", "Kandy", "Hatton", "Nanuoya", "Ella"];
 
 const TRAIN_SCHEDULES: Record<string, Record<string, { trains: TrainOption[] }>> = {
@@ -234,12 +239,12 @@ const TrainBooking = () => {
     }
   };
 
-  const stationInfo: Record<string, { desc: string; icon: string }> = {
-    Colombo: { desc: "Main hub — Fort Station", icon: "🏙️" },
-    Kandy: { desc: "Cultural capital — Hill Country gateway", icon: "🏔️" },
-    Hatton: { desc: "Tea country — Adam's Peak access", icon: "🍵" },
-    Nanuoya: { desc: "Nuwara Eliya access — Cool climate", icon: "🌿" },
-    Ella: { desc: "Scenic village — Nine Arch Bridge", icon: "🌉" },
+  const stationInfo: Record<string, { desc: string; image: string }> = {
+    Colombo: { desc: "Main hub — Fort Station", image: colomboImg },
+    Kandy: { desc: "Cultural capital — Hill Country gateway", image: kandyImg },
+    Hatton: { desc: "Tea country — Adam's Peak access", image: hattonImg },
+    Nanuoya: { desc: "Nuwara Eliya access — Cool climate", image: nanuoyaImg },
+    Ella: { desc: "Scenic village — Nine Arch Bridge", image: ellaImg },
   };
 
   return (
@@ -393,11 +398,16 @@ const TrainBooking = () => {
             <h2 className="text-lg font-semibold text-foreground mb-4">Available Stations</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {STATIONS.map(station => (
-                <Card key={station} className="hover:shadow-card transition-shadow cursor-pointer" onClick={() => !from ? setFrom(station) : !to ? setTo(station) : null}>
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xl mb-1">{stationInfo[station]?.icon}</p>
-                    <p className="font-semibold text-sm text-foreground">{station}</p>
-                    <p className="text-xs text-muted-foreground">{stationInfo[station]?.desc}</p>
+                <Card 
+                  key={station} 
+                  className="hover:shadow-card transition-shadow cursor-pointer overflow-hidden h-32 relative"
+                  style={{ backgroundImage: `url(${stationInfo[station]?.image})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+                  onClick={() => !from ? setFrom(station) : !to ? setTo(station) : null}
+                >
+                  <div className="absolute inset-0 bg-black/40"></div>
+                  <CardContent className="pt-4 pb-4 relative z-10 h-full flex flex-col justify-end">
+                    <p className="font-semibold text-sm text-white font-bold">{station}</p>
+                    <p className="text-xs text-white/90">{stationInfo[station]?.desc}</p>
                   </CardContent>
                 </Card>
               ))}
