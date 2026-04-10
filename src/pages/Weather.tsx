@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,6 @@ const Weather = () => {
   const { t } = useI18n();
 
   const API_KEY = "53b5e267bd5ebbb38bdeb37568dfd4a4";
-
-  useEffect(() => {
-    fetchWeather();
-  }, []);
 
   const fetchWeather = async () => {
     if (!city.trim()) {
