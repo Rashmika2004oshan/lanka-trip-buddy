@@ -301,7 +301,7 @@ const TrainBooking = () => {
 
               <Button className="w-full bg-gradient-tropical text-primary-foreground hover:opacity-90" onClick={handleSearch}>
                 <Train className="h-4 w-4 mr-2" />
-                {t("train.searchTrains")}
+                {t("SearchTrains")}
               </Button>
             </CardContent>
           </Card>

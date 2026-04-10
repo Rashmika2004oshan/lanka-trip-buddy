@@ -91,6 +91,7 @@ const ItineraryPlanner = () => {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [selectedHotels, setSelectedHotels] = useState<(Hotel | null)[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [userProfile, setUserProfile] = useState<{ full_name: string } | null>(null);
 
   const vehicleOptions = [
     { value: "Car", label: "1-4 passengers" },
@@ -100,7 +101,28 @@ const ItineraryPlanner = () => {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user?.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+      } else {
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
 
   const fetchAllData = async () => {
     try {
@@ -217,6 +239,12 @@ const ItineraryPlanner = () => {
   };
 
   const generateItinerary = () => {
+    if (!user) {
+      toast.error("Please sign in to create an itinerary");
+      navigate("/auth");
+      return;
+    }
+
     const numDays = parseInt(days);
     const numGuests = parseInt(guests) || 1;
     const budgetAmount = parseFloat(budget);
@@ -303,59 +331,108 @@ const ItineraryPlanner = () => {
     const avgKmPerDay = 150; // Fixed daily transportation distance
     let total = 0;
 
+    const beachesSelected = interestCategories.includes("Beaches");
+    const beachDestinations = relevantDestinations.filter(d => d.interest_category === "Beaches");
+    const nonBeachDestinations = relevantDestinations.filter(d => d.interest_category !== "Beaches");
+    const usedDestinations = new Set<string>();
+
+    const beachStayDays = beachesSelected && beachDestinations.length > 0
+      ? Math.min(numDays, numDays >= 5 ? 3 : 2)
+      : 0;
+
+    if (beachStayDays > 0) {
+      const beachDestination = beachDestinations[0];
+      plan.push({
+        type: "destination",
+        destination: beachDestination,
+        interest: "Beaches",
+        description: `Visit ${beachDestination.name} - ${beachDestination.description}`,
+      });
+      usedDestinations.add(beachDestination.name);
+
+      for (let i = 1; i < beachStayDays && plan.length < numDays; i++) {
+        plan.push({
+          type: "relax",
+          destination: null,
+          interest: "Relax",
+          description: `Relax at the hotel in ${beachDestination.name} and enjoy the beach stay`,
+          relaxCity: beachDestination.city,
+        });
+      }
+    }
+
+    const remainingDestinations = relevantDestinations
+      .filter(d => !usedDestinations.has(d.name))
+      .sort((a, b) => a.interest_category.localeCompare(b.interest_category));
+
+    for (const destination of remainingDestinations) {
+      if (plan.length >= numDays) break;
+      plan.push({
+        type: "destination",
+        destination,
+        interest: destination.interest_category,
+        description: `Visit ${destination.name} - ${destination.description}`,
+      });
+      usedDestinations.add(destination.name);
+    }
+
+    while (plan.length < numDays) {
+      const lastDestination = plan.length > 0 ? plan[plan.length - 1].destination : null;
+      const relaxCity = lastDestination?.city || fallbackHotels[0].city || null;
+      plan.push({
+        type: "relax",
+        destination: null,
+        interest: "Relax",
+        description: `Relax at the hotel and enjoy your stay${relaxCity ? ` in ${relaxCity}` : ""}`,
+        relaxCity,
+      });
+    }
+
     for (let i = 0; i < numDays; i++) {
-      const interest = selectedInterests[i % selectedInterests.length];
-      const interestCategory = interest.charAt(0).toUpperCase() + interest.slice(1);
-      
-      // Get destinations for this interest from database
-      const interestDestinations = relevantDestinations.filter(d => 
-        d.interest_category === interestCategory
-      );
-      
-      // Select destination for this day
-      const destination = interestDestinations[i % Math.max(interestDestinations.length, 1)];
-      const activity = destination 
-        ? `Visit ${destination.name} - ${destination.description}`
-        : `Explore ${interestCategory} attractions in Sri Lanka`;
-      
-      // Map destination to nearest accommodation city
-      const accommodationCity = destination ? destinationToAccommodationCity[destination.name] || destination.city : null;
+      const dayItem = plan[i];
+      const destination = dayItem.destination as Destination | null;
+      const activity = dayItem.type === "relax"
+        ? dayItem.description
+        : dayItem.description;
+
+      const accommodationCity = destination
+        ? destinationToAccommodationCity[destination.name] || destination.city
+        : (dayItem.relaxCity || fallbackHotels[0].city);
+
       let dayHotel = findHotelForCity(accommodationCity, hotelCategory);
-      
-      // If no hotel found for this city, use fallback
       if (!dayHotel) {
         dayHotel = fallbackHotels[0];
       }
-      
       dayHotels.push(dayHotel);
-      
-      const dailyTransportCost = chosenVehicle.per_km_charge * avgKmPerDay;
-      
-      // Calculate hotel cost with room type and board type multipliers
+
+      const isRelaxDay = dayItem.type === "relax";
+      const dailyTransportCost = isRelaxDay ? 0 : chosenVehicle.per_km_charge * avgKmPerDay;
+      const dailyKm = isRelaxDay ? 0 : avgKmPerDay;
+      const dailyTransportName = isRelaxDay ? "No transport (same place stay)" : chosenVehicle.model;
       let roomMultiplier = 1;
       switch (roomType) {
         case "Single": roomMultiplier = 1; break;
         case "Double": roomMultiplier = 1.5; break;
         case "Family": roomMultiplier = 2.5; break;
       }
-      
+
       let boardMultiplier = 1;
       switch (boardType) {
         case "Bed": boardMultiplier = 1.2; break;
         case "Half Board": boardMultiplier = 1.5; break;
         case "Full Board": boardMultiplier = 1.8; break;
       }
-      
+
       const baseHotelCost = dayHotel.per_night_charge * roomMultiplier * boardMultiplier;
       const hotelCost = baseHotelCost * parseInt(numRooms);
-      
-      plan.push({
+
+      plan[i] = {
         day: i + 1,
         activity,
         destination: destination?.name || null,
-        destinationCity: destination?.city || null,
+        destinationCity: destination?.city || dayItem.relaxCity || null,
         accommodationCity,
-        interest: interestCategory,
+        interest: dayItem.interest,
         hotel: dayHotel.hotel_name,
         hotelCity: dayHotel.city,
         hotelCost,
@@ -364,13 +441,12 @@ const ItineraryPlanner = () => {
         roomType,
         numRooms: parseInt(numRooms),
         boardType,
-        transport: chosenVehicle.model,
+        transport: dailyTransportName,
         transportType: chosenVehicle.vehicle_type,
         transportCost: dailyTransportCost,
-        dailyKm: avgKmPerDay,
-        dailyTotal: hotelCost + dailyTransportCost
-      });
-      
+        dailyKm,
+        dailyTotal: hotelCost + dailyTransportCost,
+      };
       total += hotelCost + dailyTransportCost;
     }
 
@@ -388,35 +464,56 @@ const ItineraryPlanner = () => {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFont("times", "normal");
 
     // Header background bar
     doc.setFillColor(24, 106, 171);
     doc.rect(0, 0, pageWidth, 40, "F");
 
     // Title
+    doc.setFont("times", "bold");
     doc.setFontSize(22);
     doc.setTextColor(255, 255, 255);
     doc.text("Sri Lanka Travel Itinerary", pageWidth / 2, 18, { align: "center" });
     doc.setFontSize(11);
     doc.text("Lanka Trip Buddy — Personalized Travel Plan", pageWidth / 2, 28, { align: "center" });
+    doc.setFont("times", "normal");
 
-    // Client info section
+    // Client Information Section
     doc.setFillColor(245, 247, 250);
-    doc.rect(0, 40, pageWidth, 38, "F");
+    doc.rect(0, 40, pageWidth, 50, "F");
 
-    doc.setFontSize(11);
+    doc.setFontSize(12);
+    doc.setTextColor(24, 106, 171);
+    doc.text("Client Information", 15, 52);
+
+    doc.setFontSize(10);
     doc.setTextColor(50, 50, 50);
-    if (user?.email) {
-      doc.text(`Client Email: ${user.email}`, 15, 52);
+    let yPos = 62;
+
+    // Client Name
+    if (userProfile?.full_name) {
+      doc.text(`Name: ${userProfile.full_name}`, 15, yPos);
+      yPos += 8;
     }
-    doc.text(`Duration: ${days} Day${parseInt(days) > 1 ? "s" : ""}`, 15, 61);
-    doc.text(`Guests: ${guests} person${parseInt(guests) > 1 ? "s" : ""}`, pageWidth / 2, 52);
-    doc.text(`Budget: USD $${budget}`, pageWidth / 2, 61);
+
+    // Client Email
+    if (user?.email) {
+      doc.text(`Email: ${user.email}`, 15, yPos);
+      yPos += 8;
+    }
+
+    // Budget
+    doc.text(`Budget: USD $${budget}`, 15, yPos);
+    yPos += 8;
+
+    // Trip Details
+    doc.text(`Duration: ${days} Day${parseInt(days) > 1 ? "s" : ""} | Guests: ${guests} person${parseInt(guests) > 1 ? "s" : ""}`, 15, yPos);
 
     // Generated date
     doc.setFontSize(9);
     doc.setTextColor(130, 130, 130);
-    doc.text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}`, 15, 72);
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}`, pageWidth - 15, 52, { align: "right" });
 
     // Interests
     const selectedInterests = Object.entries(interests)
@@ -425,43 +522,51 @@ const ItineraryPlanner = () => {
       .join(", ");
     doc.setFontSize(10);
     doc.setTextColor(50, 50, 50);
-    doc.text(`Interests: ${selectedInterests}`, pageWidth / 2, 72, { align: "right" });
+    doc.text(`Interests: ${selectedInterests}`, pageWidth - 15, 68, { align: "right" });
 
     // Divider
     doc.setDrawColor(180, 180, 180);
-    doc.line(15, 78, pageWidth - 15, 78);
+    doc.line(15, 95, pageWidth - 15, 95);
 
-    // Accommodation & Transport
+    // Accommodation & Transport Section
     doc.setFontSize(12);
     doc.setTextColor(24, 106, 171);
-    doc.text("Accommodation & Transport", 15, 88);
+    doc.text("Accommodation & Transport Details", 15, 107);
 
     // Get unique hotels used
     const uniqueHotels = [...new Map(selectedHotels.filter(Boolean).map(h => [h!.id, h!])).values()];
-    
+
     doc.setFontSize(10);
     doc.setTextColor(60, 60, 60);
+    yPos = 117;
+
     if (uniqueHotels.length === 1) {
-      doc.text(`🏨 Hotel: ${uniqueHotels[0].hotel_name} — ${uniqueHotels[0].city} (${hotelCategory} category, ${uniqueHotels[0].stars}★)`, 15, 97);
-      doc.text(`   Room: ${roomType} × ${numRooms} rooms (${getBoardTypeDisplay(boardType)})`, 15, 105);
-      doc.text(`   Price: $${uniqueHotels[0].per_night_charge}/night`, 15, 113);
+      doc.text(`Hotel: ${uniqueHotels[0].hotel_name} — ${uniqueHotels[0].city} (${hotelCategory} category, ${uniqueHotels[0].stars}★)`, 15, yPos);
+      yPos += 8;
+      doc.text(`Room Type: ${roomType} × ${numRooms} rooms (${getBoardTypeDisplay(boardType)})`, 15, yPos);
+      yPos += 8;
+      doc.text(`Price: $${uniqueHotels[0].per_night_charge}/night`, 15, yPos);
     } else {
-      doc.text(`🏨 Hotels: ${uniqueHotels.length} hotels across destinations (${hotelCategory} category)`, 15, 97);
-      doc.text(`   Room: ${roomType} × ${numRooms} rooms (${getBoardTypeDisplay(boardType)})`, 15, 105);
-      doc.text(`   Hotels change based on overnight destination city`, 15, 113);
+      doc.text(`Hotels: ${uniqueHotels.length} hotels across destinations (${hotelCategory} category)`, 15, yPos);
+      yPos += 8;
+      doc.text(`Room Type: ${roomType} × ${numRooms} rooms (${getBoardTypeDisplay(boardType)})`, 15, yPos);
+      yPos += 8;
+      doc.text(`Hotels change based on overnight destination city`, 15, yPos);
     }
-    doc.text(`🚗 Vehicle: ${selectedVehicle?.model || "N/A"} — ${vehicleType}${vehicleCategory ? ` (${vehicleCategory} class)` : ""}`, 15, 122);
-    doc.text(`   Rate: $${selectedVehicle?.per_km_charge || 0}/km × 150km/day`, 15, 130);
+    yPos += 10;
+    doc.text(`Vehicle: ${selectedVehicle?.model || "N/A"} — ${vehicleType}${vehicleCategory ? ` (${vehicleCategory} class)` : ""}`, 15, yPos);
+    yPos += 8;
+    doc.text(`Rate: $${selectedVehicle?.per_km_charge || 0}/km × 150km/day`, 15, yPos);
 
     doc.setDrawColor(200, 200, 200);
-    doc.line(15, 128, pageWidth - 15, 128);
+    doc.line(15, yPos + 5, pageWidth - 15, yPos + 5);
 
-    // Destinations heading
+    // Daily Itinerary Section
     doc.setFontSize(12);
     doc.setTextColor(24, 106, 171);
-    doc.text("Daily Itinerary", 15, 137);
+    doc.text("Daily Itinerary", 15, yPos + 17);
 
-    let yPos = 147;
+    yPos = yPos + 27;
 
     itinerary.forEach((dayPlan, index) => {
       if (yPos > 255) {
@@ -486,11 +591,11 @@ const ItineraryPlanner = () => {
 
       doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
-      doc.text(`🏠 ${dayPlan.roomType} × ${dayPlan.numRooms} (${getBoardTypeDisplay(dayPlan.boardType)})`, 18, yPos);
+      doc.text(`Room: ${dayPlan.roomType} × ${dayPlan.numRooms} (${getBoardTypeDisplay(dayPlan.boardType)})`, 18, yPos);
       yPos += 6;
-      doc.text(`📍 ${dayPlan.destination} (${dayPlan.destinationCity})  |  🏨 ${dayPlan.hotel} (${dayPlan.hotelCity})`, 18, yPos);
+      doc.text(`Destination: ${dayPlan.destination} (${dayPlan.destinationCity})  |  Hotel: ${dayPlan.hotel} (${dayPlan.hotelCity})`, 18, yPos);
       yPos += 6;
-      doc.text(`🚗 ${dayPlan.transport} (${dayPlan.dailyKm}km)  |  💵 $${dayPlan.dailyTotal.toFixed(2)}/day`, 18, yPos);
+      doc.text(`Transport: ${dayPlan.transport} (${dayPlan.dailyKm}km)  |  Cost: $${dayPlan.dailyTotal.toFixed(2)}/day`, 18, yPos);
       yPos += 10;
 
       if (index < itinerary.length - 1) {
@@ -516,11 +621,11 @@ const ItineraryPlanner = () => {
       doc.setDrawColor(255, 156, 0);
       doc.setLineWidth(1.5);
       doc.rect(15, yPos, pageWidth - 30, 30);
-      
+
       doc.setFontSize(12);
       doc.setTextColor(217, 108, 0);
-      doc.text("⚠ Budget Alert", 20, yPos + 8);
-      
+      doc.text("Budget Alert", 20, yPos + 8);
+
       doc.setFontSize(10);
       doc.setTextColor(140, 70, 0);
       const budgetDiff = totalCost - parseFloat(budget);

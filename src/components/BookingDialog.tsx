@@ -20,7 +20,7 @@ interface BookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bookingType: "vehicle" | "accommodation";
-  itemData: any;
+  itemData: bookingType extends "vehicle" ? VehicleData : AccommodationData;
 }
 
 const BookingDialog = ({ open, onOpenChange, bookingType, itemData }: BookingDialogProps) => {
