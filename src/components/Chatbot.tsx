@@ -5,19 +5,20 @@ import { Card } from "@/components/ui/card";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-  reasoning_details?: unknown;
 }
 
 const Chatbot = () => {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hi! I'm your Sri Lanka travel guide. Ask me anything about places to visit, accommodations, transportation, or travel tips!",
+      content: t("chatbot.greeting"),
     },
   ]);
   const [input, setInput] = useState("");
@@ -39,31 +40,28 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const openrouterKey = import.meta.env.VITE_OPENROUTER_API_KEY?.trim() || "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";
+      const apiKey = "AIzaSyC-w3wdNr7nV6HTVrGLt4AKyVTyO_5SNVw";
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      // Build conversation history for Gemini
+      const conversationText = messages.map(m => 
+        `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`
+      ).join("\n") + `\nUser: ${input}`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${openrouterKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": window.location.href,
-          "X-Title": "Sri Lanka Tourism AI Guide",
         },
         body: JSON.stringify({
-          model: "nvidia/nemotron-3-super-120b-a12b:free",
-          reasoning: { enabled: true },
-          messages: [
+          contents: [
             {
-              role: "system",
-              content: "You are a knowledgeable Sri Lanka travel guide. Provide helpful, accurate information about Sri Lankan destinations, accommodations, transportation, culture, food, and travel tips. Be friendly and concise.",
-            },
-            ...messages.map((m) => ({
-              role: m.role,
-              content: m.content,
-              ...(m.reasoning_details ? { reasoning_details: m.reasoning_details } : {}),
-            })),
-            { role: "user", content: input },
-          ],
+              parts: [
+                {
+                  text: `You are a knowledgeable Sri Lanka travel guide. Provide helpful, accurate information about Sri Lankan destinations, accommodations, transportation, culture, food, and travel tips. Be friendly and concise.\n\n${conversationText}\nAssistant:`
+                }
+              ]
+            }
+          ]
         }),
       });
 
@@ -72,11 +70,10 @@ const Chatbot = () => {
       }
 
       const data = await response.json();
-      const aiMessage = data.choices?.[0]?.message;
+      const aiMessage = data.candidates?.[0]?.content?.parts?.[0]?.text;
       const assistantMessage: Message = {
         role: "assistant",
-        content: aiMessage?.content || "Sorry, I couldn't generate an answer.",
-        reasoning_details: aiMessage?.reasoning_details,
+        content: aiMessage || "Sorry, I couldn't generate an answer.",
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -117,8 +114,8 @@ const Chatbot = () => {
       {isOpen && (
         <Card className="fixed bottom-24 right-6 w-96 h-[500px] shadow-elevated z-50 flex flex-col border-border/50">
           <div className="bg-gradient-tropical text-white p-4 rounded-t-lg">
-            <h3 className="font-semibold text-lg">Sri Lanka Travel Assistant</h3>
-            <p className="text-sm text-white/90">Ask me anything about your trip!</p>
+            <h3 className="font-semibold text-lg">{t("chatbot.title")}</h3>
+            <p className="text-sm text-white/90">{t("chatbot.subtitle")}</p>
           </div>
 
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>
@@ -155,7 +152,7 @@ const Chatbot = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Type your question..."
+                placeholder={t("chatbot.placeholder")}
                 disabled={isLoading}
                 className="border-border"
               />
