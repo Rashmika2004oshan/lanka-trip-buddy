@@ -40,28 +40,29 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const apiKey = "AIzaSyC-w3wdNr7nV6HTVrGLt4AKyVTyO_5SNVw";
+      const apiKey = "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";
 
-      // Build conversation history for Gemini
-      const conversationText = messages.map(m => 
-        `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`
-      ).join("\n") + `\nUser: ${input}`;
+      const openRouterMessages = [
+        {
+          role: "system",
+          content: "You are a knowledgeable Sri Lanka travel guide. Provide helpful, accurate information about Sri Lankan destinations, accommodations, transportation, culture, food, and travel tips. Be friendly and concise.",
+        },
+        ...messages,
+        { role: "user", content: input },
+      ];
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `You are a knowledgeable Sri Lanka travel guide. Provide helpful, accurate information about Sri Lankan destinations, accommodations, transportation, culture, food, and travel tips. Be friendly and concise.\n\n${conversationText}\nAssistant:`
-                }
-              ]
-            }
-          ]
+          model: "nvidia/nemotron-3-super-120b-a12b:free",
+          messages: openRouterMessages,
+          reasoning: {
+            enabled: true,
+          },
         }),
       });
 
@@ -70,10 +71,16 @@ const Chatbot = () => {
       }
 
       const data = await response.json();
-      const aiMessage = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const aiMessage =
+        data?.choices?.[0]?.message?.content ||
+        data?.result?.[0]?.message?.content ||
+        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        data?.output_text ||
+        data?.content?.[0]?.message?.content ||
+        "Sorry, I couldn't generate an answer.";
       const assistantMessage: Message = {
         role: "assistant",
-        content: aiMessage || "Sorry, I couldn't generate an answer.",
+        content: aiMessage,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);

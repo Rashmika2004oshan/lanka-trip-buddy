@@ -1,4 +1,4 @@
-import { MapPin } from "lucide-react";
+nopimport { MapPin } from "lucide-react";
 
 const MapSection = () => {
   return (
