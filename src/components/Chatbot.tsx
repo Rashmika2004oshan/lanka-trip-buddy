@@ -40,7 +40,7 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const apiKey = "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";
+      const apiKey = "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";
 
       const openRouterMessages = [
         {
@@ -58,7 +58,7 @@ const Chatbot = () => {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "nvidia/nemotron-3-nano-30b-a3b:free",
+          model: "nvidia/nemotron-3-super-120b-a12b:free",
           messages: openRouterMessages,
           reasoning: {
             enabled: true,
