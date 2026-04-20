@@ -29,6 +29,7 @@ export type Database = {
           payment_method: string
           rental_end_date: string | null
           rental_start_date: string | null
+          board_type: string | null
           room_type: string | null
           service_charge: number
           subtotal: number
@@ -38,6 +39,7 @@ export type Database = {
           vehicle_id: string | null
         }
         Insert: {
+          board_type?: string | null
           booking_status?: string
           booking_type: string
           check_in_date?: string | null
@@ -60,6 +62,7 @@ export type Database = {
           vehicle_id?: string | null
         }
         Update: {
+          board_type?: string | null
           booking_status?: string
           booking_type?: string
           check_in_date?: string | null

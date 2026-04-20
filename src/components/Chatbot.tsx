@@ -40,7 +40,11 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const apiKey = "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";
+      const apiKey = import.meta.env.VITE_CHATBOT_API_KEY;
+
+      if (!apiKey) {
+        throw new Error("Chatbot API key not configured");
+      }
 
       const openRouterMessages = [
         {
@@ -71,13 +75,7 @@ const Chatbot = () => {
       }
 
       const data = await response.json();
-      const aiMessage =
-        data?.choices?.[0]?.message?.content ||
-        data?.result?.[0]?.message?.content ||
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        data?.output_text ||
-        data?.content?.[0]?.message?.content ||
-        "Sorry, I couldn't generate an answer.";
+      const aiMessage = data?.choices?.[0]?.message?.content || "Sorry, I couldn't generate an answer.";
       const assistantMessage: Message = {
         role: "assistant",
         content: aiMessage,

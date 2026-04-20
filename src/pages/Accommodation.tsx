@@ -25,6 +25,7 @@ interface HotelData {
   category: string;
   city: string;
   image_url: string | null;
+  owner_email: string | null;
 }
 
 interface Review {

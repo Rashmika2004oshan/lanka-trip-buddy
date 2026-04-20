@@ -16,6 +16,25 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 
+interface VehicleData {
+  id: string;
+  vehicle_type: string;
+  model: string;
+  per_km_charge: number;
+  owner_email: string | null;
+}
+
+interface AccommodationData {
+  id: string;
+  hotel_name: string;
+  per_night_charge: number;
+  owner_email: string | null;
+  stars?: number;
+  category?: string;
+  city?: string;
+  image_url?: string | null;
+}
+
 interface BookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
