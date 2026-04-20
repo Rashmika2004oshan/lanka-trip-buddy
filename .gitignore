@@ -12,6 +12,7 @@ dist
 dist-ssr
 .vite/
 *.local
+TravelSrilanka/
 
 # Environment variables (CRITICAL)
 .env
