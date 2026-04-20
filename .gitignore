@@ -14,9 +14,6 @@ dist-ssr
 *.local
 TravelSrilanka/
 
-# Environment variables (CRITICAL)
-.env
-.env.*
 
 # Editor directories and files
 .vscode/*
